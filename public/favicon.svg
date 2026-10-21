@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Reesatck">
+  <rect width="64" height="64" rx="14" fill="#253d32" />
+  <g fill="none" stroke="#dcebb7" stroke-width="3.4" stroke-linecap="round">
+    <path d="M18 20h20a6 6 0 0 1 6 6v20H24a6 6 0 0 1-6-6z" />
+    <path d="M27 20v26" />
+  </g>
+  <circle cx="44" cy="19" r="5" fill="#b06b4a" />
+</svg>
