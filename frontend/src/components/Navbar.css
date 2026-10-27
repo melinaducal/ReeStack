@@ -1,0 +1,57 @@
+.navbar {
+  background: rgba(245, 235, 221, 0.95);
+  padding: 0.875rem 0;
+  border-bottom: 1px solid rgba(188, 96, 66, 0.25);
+  box-shadow: none;
+}
+
+.navbar-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar-logo {
+  color: #233F49;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  font-family: 'Lora', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+.navbar-menu {
+  display: flex;
+  list-style: none;
+  gap: 2rem;
+  align-items: center;
+}
+
+.navbar-link {
+  color: #233F49;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-weight: 400;
+}
+
+.navbar-link:hover {
+  color: #BC6042;
+}
+
+.navbar-logout {
+  background: none;
+  border: none;
+  color: #BC6042;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  font-weight: 500;
+}
+
+.navbar-logout:hover {
+  opacity: 0.8;
+}

@@ -1,0 +1,130 @@
+.appearance-page {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.appearance-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.appearance-header h1 {
+  font-size: 2.2rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  font-family: 'Lora', Georgia, serif;
+}
+
+.appearance-subtitle {
+  color: var(--accent-violet);
+  font-size: 1rem;
+}
+
+.appearance-section {
+  background: var(--bg-card);
+  padding: 1.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 6px rgba(107, 70, 193, 0.04);
+}
+
+.appearance-section h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  font-family: 'Lora', Georgia, serif;
+}
+
+.color-presets {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.color-swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid var(--border-color);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-violet);
+}
+
+.custom-color {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.custom-color label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.color-picker {
+  width: 80px;
+  height: 40px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.reset-button {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.6rem 1.25rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-button:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-old-rose);
+}
+
+.preview-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.preview-button {
+  background: var(--accent-violet);
+  color: white;
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.preview-link {
+  color: var(--accent-violet);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.preview-badge {
+  background: var(--accent-old-rose);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+}

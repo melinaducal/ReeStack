@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Inter:wght@400;500&display=swap');
+
+:root {
+  /* Fondos */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8F3F6;
+  --bg-tertiary: #F3F0FA;
+  --bg-card: #FFFFFF;
+
+  /* Acentos */
+  --accent-old-rose: #B98A9D;
+  --accent-violet: #6B46C1;
+  --accent-hover: #5A3AA8;
+
+  /* Texto */
+  --text-primary: #1F1F1F;
+  --text-secondary: #4A4A4A;
+  --text-tertiary: #6B6B6B;
+
+  /* Bordes */
+  --border-color: #E6DFEC;
+
+  /* Estados */
+  --focus-ring: rgba(107, 70, 193, 0.4);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Lora', Georgia, serif;
+  color: var(--text-primary);
+}

@@ -1,0 +1,269 @@
+.auth-page {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+}
+
+.entrance-animation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeOut 0.3s ease 0.9s forwards;
+}
+
+.animation-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  animation: zoomIn 1.2s ease forwards;
+}
+
+.library-scene {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.library-scene.closed {
+  opacity: 1;
+  animation: fadeClosed 0.4s ease 0.3s forwards;
+}
+
+.library-scene.open {
+  opacity: 0;
+  animation: fadeOpen 0.4s ease 0.3s forwards;
+}
+
+.door-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  height: 200px;
+  transform: translate(-50%, -30%);
+  perspective: 800px;
+  z-index: 10;
+  animation: hideDoor 0.1s ease 0.4s forwards;
+}
+
+.door {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #6B4E38 0%, #8B6F47 50%, #6B4E38 100%);
+  transform-origin: left center;
+  animation: openDoor 0.4s ease forwards;
+  border: 2px solid #4A3728;
+  border-radius: 2px;
+}
+
+@keyframes openDoor {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(-90deg);
+    opacity: 0;
+  }
+}
+
+@keyframes hideDoor {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fadeClosed {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fadeOpen {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.4);
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entrance-animation,
+  .animation-scene,
+  .door,
+  .library-scene {
+    animation: none;
+  }
+  .entrance-animation {
+    display: none;
+  }
+}
+
+.auth-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-width: 900px;
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(107, 70, 193, 0.1);
+  border: 1px solid var(--border-color);
+}
+
+.auth-illustration {
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.library-illustration {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(107, 70, 193, 0.15);
+}
+
+.illustration-text {
+  font-family: 'Lora', Georgia, serif;
+  font-style: italic;
+  color: var(--accent-violet);
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.auth-form-section {
+  padding: 2.5rem;
+}
+
+.auth-form-section h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.form-group input {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent-violet);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.auth-button {
+  background: var(--accent-violet);
+  color: white;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background 0.2s ease;
+  margin-top: 0.5rem;
+}
+
+.auth-button:hover {
+  background: var(--accent-hover);
+}
+
+.error-message {
+  color: #d32f2f;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.auth-links a {
+  color: var(--accent-violet);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: opacity 0.2s ease;
+}
+
+.auth-links a:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .auth-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .auth-illustration {
+    display: none;
+  }
+  
+  .door-container {
+    width: 80px;
+    height: 140px;
+  }
+}

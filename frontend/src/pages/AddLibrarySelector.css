@@ -1,0 +1,74 @@
+.library-selector {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #BC6042;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem 0;
+  transition: opacity 0.2s ease;
+}
+
+.back-button:hover {
+  opacity: 0.8;
+}
+
+.selector-header {
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(188, 96, 66, 0.25);
+}
+
+.selector-header h1 {
+  font-size: 2.2rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.01em;
+}
+
+.selector-subtitle {
+  color: #BC6042;
+  font-size: 1rem;
+}
+
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.type-card {
+  background: rgba(255, 255, 255, 0.65);
+  padding: 1.5rem;
+  border: 1px solid rgba(201, 143, 134, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 6px rgba(35, 63, 73, 0.06);
+}
+
+.type-card:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: #BC6042;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(188, 96, 66, 0.12);
+}
+
+.type-card h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: #233F49;
+}
+
+.type-card p {
+  color: #6b7c85;
+  font-size: 0.9rem;
+}

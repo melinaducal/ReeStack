@@ -1,0 +1,197 @@
+.feed-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.feed-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(188, 96, 66, 0.25);
+}
+
+.feed-header h1 {
+  font-size: 2.2rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.01em;
+}
+
+.feed-subtitle {
+  color: #BC6042;
+  font-size: 1rem;
+}
+
+.posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.post-card {
+  background: rgba(255, 255, 255, 0.65);
+  padding: 1.75rem;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(35, 63, 73, 0.06);
+  border: 1px solid rgba(201, 143, 134, 0.25);
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.post-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.post-meta {
+  flex: 1;
+}
+
+.post-author {
+  font-weight: 500;
+  color: #233F49;
+}
+
+.post-date {
+  font-size: 0.875rem;
+  color: #6b7c85;
+  margin-top: 0.2rem;
+}
+
+.post-related {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(245, 235, 221, 0.6);
+  border-radius: 8px;
+}
+
+.post-cover {
+  width: 40px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.post-related-text {
+  font-size: 0.95rem;
+  color: #233F49;
+}
+
+.post-related-title {
+  font-weight: 500;
+}
+
+.post-content {
+  line-height: 1.7;
+  color: #233F49;
+}
+
+.post-content p {
+  white-space: pre-wrap;
+}
+
+.feed-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.sidebar-section {
+  background: rgba(255, 255, 255, 0.65);
+  padding: 1.25rem;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(35, 63, 73, 0.06);
+  border: 1px solid rgba(201, 143, 134, 0.25);
+}
+
+.sidebar-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  font-family: 'Lora', Georgia, serif;
+}
+
+.sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-cover {
+  width: 40px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-item-title {
+  font-size: 0.9rem;
+  color: #233F49;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-item-status {
+  font-size: 0.8rem;
+  color: #BC6042;
+  margin-top: 0.2rem;
+  text-transform: capitalize;
+}
+
+.sidebar-stack {
+  padding: 0;
+}
+
+.stack-link {
+  display: block;
+  padding: 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.2s ease;
+}
+
+.stack-link:hover {
+  background: rgba(201, 143, 134, 0.15);
+}
+
+.stack-description {
+  font-size: 0.9rem;
+  color: #BC6042;
+  margin-top: 0.3rem;
+}
+
+@media (max-width: 968px) {
+  .feed-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .feed-sidebar {
+    order: -1;
+  }
+}

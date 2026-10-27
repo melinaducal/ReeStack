@@ -1,0 +1,123 @@
+.home-header {
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(188, 96, 66, 0.3);
+}
+
+.home-header h1 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.home-subtitle {
+  font-family: 'Lora', Georgia, serif;
+  font-style: italic;
+  color: #BC6042;
+  font-size: 1.1rem;
+}
+
+.filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.filters button {
+  padding: 0.5rem 1.25rem;
+  border: 1.5px solid rgba(201, 143, 134, 0.5);
+  background: rgba(255, 255, 255, 0.4);
+  color: #233F49;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+}
+
+.filters button:hover {
+  background: rgba(201, 143, 134, 0.2);
+  border-color: #C98F86;
+}
+
+.filters button.active {
+  background: #BC6042;
+  color: #F5EBDD;
+  border-color: #BC6042;
+  font-weight: 500;
+}
+
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.75rem;
+}
+
+.item-card {
+  background: rgba(255, 255, 255, 0.6);
+  padding: 1.75rem;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 2px 8px rgba(35, 63, 73, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid rgba(201, 143, 134, 0.3);
+}
+
+.item-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(188, 96, 66, 0.15);
+}
+
+.item-card h3 {
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.item-type {
+  color: #BC6042;
+  text-transform: capitalize;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.item-rating {
+  color: #BC6042;
+  font-weight: 500;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(201, 143, 134, 0.4);
+}
+
+.empty-message {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 1.2rem;
+  font-style: italic;
+  color: #233F49;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.empty-button {
+  display: inline-block;
+  background: #BC6042;
+  color: #F5EBDD;
+  padding: 0.75rem 2rem;
+  text-decoration: none;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+  font-weight: 500;
+}
+
+.empty-button:hover {
+  background: #a0523a;
+}
