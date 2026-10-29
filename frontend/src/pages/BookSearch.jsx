@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import './BookSearch.css'
@@ -15,6 +15,26 @@ function BookSearch() {
   const [step, setStep] = useState(1)
   const [books, setBooks] = useState([])
   const [loading, setLoading] = useState(false)
+  const [userItems, setUserItems] = useState([])
+  const [adding, setAdding] = useState({})
+
+  useEffect(() => {
+    fetchUserItems()
+  }, [])
+
+  const fetchUserItems = async () => {
+    try {
+      const response = await api.get('/items', { params: { mine: true } })
+      setUserItems(response.data || [])
+    } catch (error) {
+      console.error('Error fetching user items:', error)
+    }
+  }
+
+  const isInLibrary = (title) => {
+    if (!title) return false
+    return userItems.some(item => item.title && item.title.toLowerCase() === title.toLowerCase())
+  }
 
   const toggleGenre = (genre) => {
     setSelectedGenres(prev => 
@@ -29,32 +49,44 @@ function BookSearch() {
     setLoading(true)
     setStep(2)
     try {
-      const query = selectedGenres.join('+')
-      const response = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=subject:${query}&maxResults=20&langRestrict=es`
-      )
-      const data = await response.json()
-      setBooks(data.items || [])
+      const response = await api.get('/books/search', {
+        params: {
+          genres: selectedGenres,
+          mode: 'or'
+        }
+      })
+      setBooks(response.data.results || [])
     } catch (error) {
       console.error('Error fetching books:', error)
+      setBooks([])
     }
     setLoading(false)
   }
 
   const addBook = async (book) => {
-    const volumeInfo = book.volumeInfo
+    const title = book.title
+    if (!title) return
+    if (isInLibrary(title)) {
+      return
+    }
+    setAdding(prev => ({ ...prev, [title]: true }))
     try {
+      const authors = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors || ''
+      const year = book.published_date ? parseInt(String(book.published_date).substring(0, 4)) : null
       await api.post('/items', {
-        title: volumeInfo.title,
+        title: title,
         type: 'book',
-        creator: volumeInfo.authors?.join(', ') || '',
-        year: volumeInfo.publishedDate ? parseInt(volumeInfo.publishedDate.substring(0, 4)) : null,
+        creator: authors,
+        year: isNaN(year) ? null : year,
         rating: null,
-        thoughts: ''
+        thoughts: book.description || '',
+        cover_url: book.cover_url || null
       })
-      navigate('/')
+      await fetchUserItems()
     } catch (error) {
       console.error('Error adding book:', error)
+    } finally {
+      setAdding(prev => ({ ...prev, [title]: false }))
     }
   }
 
@@ -97,22 +129,30 @@ function BookSearch() {
             <p className="loading">Buscando libros...</p>
           ) : (
             <div className="books-grid">
-              {books.map(book => {
-                const volumeInfo = book.volumeInfo
+              {books.map((book, idx) => {
+                const title = book.title
+                const authors = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors
+                const genres = Array.isArray(book.genres) ? book.genres.join(', ') : book.genres
+                const inLib = isInLibrary(title)
                 return (
-                  <div key={book.id} className="book-card">
-                    {volumeInfo.imageLinks?.thumbnail && (
+                  <div key={book.isbn || title || idx} className="book-card">
+                    {book.cover_url && (
                       <img 
-                        src={volumeInfo.imageLinks.thumbnail} 
-                        alt={volumeInfo.title}
+                        src={book.cover_url} 
+                        alt={title}
                         className="book-cover"
                       />
                     )}
                     <div className="book-info">
-                      <h3>{volumeInfo.title}</h3>
-                      {volumeInfo.authors && <p className="book-author">{volumeInfo.authors.join(', ')}</p>}
-                      <button onClick={() => addBook(book)} className="add-book-button">
-                        Agregar a mi stack
+                      <h3>{title}</h3>
+                      {authors && <p className="book-author">{authors}</p>}
+                      {genres && <p className="book-author">{genres}</p>}
+                      <button 
+                        onClick={() => addBook(book)} 
+                        className="add-book-button"
+                        disabled={inLib || adding[title]}
+                      >
+                        {inLib ? 'Ya en mi biblioteca' : (adding[title] ? 'Agregando...' : 'Agregar a mi biblioteca')}
                       </button>
                     </div>
                   </div>

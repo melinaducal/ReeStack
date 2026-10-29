@@ -35,11 +35,13 @@ function Login() {
       
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (prefersReducedMotion) {
-        navigate('/')
+        navigate('/', { replace: true })
+        window.location.reload()
       } else {
         setIsAnimating(true)
         setTimeout(() => {
-          navigate('/')
+          navigate('/', { replace: true })
+          window.location.reload()
         }, 1200)
       }
     } catch (error) {

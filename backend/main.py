@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import items, auth, comments, chat, likes
+from app.routers import items, auth, comments, chat, likes, books
 from app.database import engine, Base
 from dotenv import load_dotenv
 
@@ -23,6 +23,7 @@ app.include_router(auth.router)
 app.include_router(comments.router)
 app.include_router(chat.router)
 app.include_router(likes.router)
+app.include_router(books.router)
 
 
 @app.get("/")

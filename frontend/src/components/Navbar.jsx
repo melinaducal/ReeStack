@@ -6,10 +6,9 @@ function Navbar() {
   const isAuthenticated = localStorage.getItem('token')
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('userEmail')
-    localStorage.removeItem('themeAccent')
-    navigate('/login')
+    localStorage.clear()
+    navigate('/login', { replace: true })
+    window.location.reload()
   }
 
   return (
