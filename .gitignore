@@ -20,6 +20,9 @@ dist-ssr/
 # Uploaded user files
 backend/uploads/
 
+# Local AI memory tooling (per-machine project config)
+.engram/
+
 # Logs
 logs
 *.log
