@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import { getErrorMessage } from '../services/errors'
 import './Register.css'
 
 function Register() {
@@ -63,7 +64,7 @@ function Register() {
       await api.post('/auth/register', formData)
       navigate('/login')
     } catch (error) {
-      setError(error.response?.data?.detail || 'Error al registrarse')
+      setError(getErrorMessage(error, 'Error al registrarse'))
     }
   }
 

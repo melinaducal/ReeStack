@@ -34,7 +34,7 @@ function Navbar() {
                 <Link to="/add" className="navbar-link">Agregar</Link>
               </li>
               <li className="navbar-item">
-                <Link to="/appearance" className="navbar-link">Apariencia</Link>
+                <Link to="/settings" className="navbar-link">Configuración</Link>
               </li>
               <li className="navbar-item">
                 <button onClick={handleLogout} className="navbar-logout">Cerrar sesión</button>

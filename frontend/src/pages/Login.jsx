@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import { getErrorMessage } from '../services/errors'
 import libraryImage from '../assets/library-oil.png'
 import libraryOpenImage from '../assets/library-open.png'
 import './Login.css'
@@ -45,7 +46,7 @@ function Login() {
         }, 1200)
       }
     } catch (error) {
-      setError(error.response?.data?.detail || 'Error al iniciar sesión')
+      setError(getErrorMessage(error, 'Error al iniciar sesión'))
     }
   }
 

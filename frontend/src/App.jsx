@@ -11,8 +11,8 @@ import AddLibraryBrowse from './pages/AddLibraryBrowse'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
-import Appearance from './pages/Appearance'
 import Chatbot from './pages/Chatbot'
+import Settings from './pages/Settings'
 import './App.css'
 
 function App() {
@@ -52,12 +52,12 @@ function App() {
           <Route path="/forgot-password" element={!isAuthenticated ? <ForgotPassword /> : <Navigate to="/" replace />} />
           <Route path="/" element={isAuthenticated ? <Feed /> : <Navigate to="/login" replace />} />
           <Route path="/stack" element={isAuthenticated ? <Home /> : <Navigate to="/login" replace />} />
+          <Route path="/settings" element={isAuthenticated ? <Settings /> : <Navigate to="/login" replace />} />
           <Route path="/add" element={isAuthenticated ? <AddLibrarySelector /> : <Navigate to="/login" replace />} />
           <Route path="/add-item" element={isAuthenticated ? <AddItem /> : <Navigate to="/login" replace />} />
           <Route path="/add-library/browse" element={isAuthenticated ? <AddLibraryBrowse /> : <Navigate to="/login" replace />} />
           <Route path="/item/:id" element={isAuthenticated ? <ItemDetail /> : <Navigate to="/login" replace />} />
           <Route path="/book-search" element={isAuthenticated ? <BookSearch /> : <Navigate to="/login" replace />} />
-          <Route path="/appearance" element={isAuthenticated ? <Appearance /> : <Navigate to="/login" replace />} />
           <Route path="/chatbot" element={isAuthenticated ? <Chatbot /> : <Navigate to="/login" replace />} />
         </Routes>
       </div>
