@@ -3,3 +3,8 @@
   margin: 0 auto;
   padding: 20px;
 }
+
+body {
+  background-color: var(--page-bg, var(--bg-primary));
+}
+

@@ -1,0 +1,145 @@
+.settings-page {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.settings-page-header {
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(139, 123, 168, 0.18);
+}
+
+.settings-page-header h1 {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 2.4rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: #2f2438;
+}
+
+.settings-page-subtitle {
+  color: #6f6285;
+  font-size: 1rem;
+}
+
+.settings-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 16px;
+  border: 1px solid rgba(139, 123, 168, 0.18);
+  box-shadow: 0 40px 60px -40px rgba(47, 36, 56, 0.9);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.settings-card-header {
+  padding: 1.8rem 2.2rem 1rem;
+}
+
+.settings-card-header h2 {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 1.5rem;
+  color: #2f2438;
+  margin-bottom: 0.3rem;
+}
+
+.settings-card-header p {
+  color: #6f6285;
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  padding: 0 2.2rem 2rem;
+}
+
+.palette-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  text-align: left;
+  background: #ffffff;
+  border: 1.5px solid rgba(139, 123, 168, 0.25);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.palette-option:hover {
+  box-shadow: 0 10px 30px -20px rgba(47, 36, 56, 0.9);
+}
+
+.palette-option.active {
+  box-shadow: 0 0 0 1px currentColor;
+}
+
+.palette-option-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.palette-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.palette-dots span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(139, 123, 168, 0.25);
+}
+
+.palette-check {
+  color: #6f6285;
+}
+
+.palette-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.palette-option-name {
+  color: #2f2438;
+  font-weight: 500;
+}
+
+.palette-option-desc {
+  color: #6f6285;
+  font-size: 0.95rem;
+}
+
+.custom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.2rem 2rem;
+}
+
+.custom-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.custom-label {
+  color: #2f2438;
+  font-weight: 500;
+}
+
+.custom-value {
+  color: #6f6285;
+}
+
+.color-input {
+  width: 64px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}

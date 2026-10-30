@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import './Navbar.css'
 
 function Navbar() {
   const navigate = useNavigate()
   const isAuthenticated = localStorage.getItem('token')
+  const [profileOpen, setProfileOpen] = useState(false)
 
   const handleLogout = () => {
     localStorage.clear()
@@ -25,6 +27,9 @@ function Navbar() {
                 <Link to="/stack" className="navbar-link">Mi Stack</Link>
               </li>
               <li className="navbar-item">
+                <Link to="/users" className="navbar-link">Explorar usuarios</Link>
+              </li>
+              <li className="navbar-item">
                 <Link to="/chatbot" className="navbar-link">Recomendador</Link>
               </li>
               <li className="navbar-item">
@@ -33,11 +38,17 @@ function Navbar() {
               <li className="navbar-item">
                 <Link to="/add" className="navbar-link">Agregar</Link>
               </li>
-              <li className="navbar-item">
-                <Link to="/settings" className="navbar-link">Configuración</Link>
-              </li>
-              <li className="navbar-item">
-                <button onClick={handleLogout} className="navbar-logout">Cerrar sesión</button>
+              <li className="navbar-item navbar-profile">
+                <button className="navbar-profile-btn" onClick={() => setProfileOpen(!profileOpen)}>
+                  Perfil
+                </button>
+                {profileOpen && (
+                  <div className="navbar-profile-menu">
+                    <Link to="/profile" className="navbar-profile-item" onClick={() => setProfileOpen(false)}>Mi perfil</Link>
+                    <Link to="/settings" className="navbar-profile-item" onClick={() => setProfileOpen(false)}>Configuración</Link>
+                    <button onClick={handleLogout} className="navbar-profile-item navbar-profile-logout">Cerrar sesión</button>
+                  </div>
+                )}
               </li>
             </>
           )}

@@ -1,0 +1,199 @@
+.public-profile-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.4rem;
+}
+
+.public-profile-hero {
+  background: radial-gradient(circle at top, rgba(196, 164, 255, 0.18), transparent 60%), radial-gradient(circle at bottom, rgba(217, 191, 214, 0.16), transparent 70%);
+  border: 1px solid rgba(139, 123, 168, 0.18);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.public-profile-hero-inner {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 2.8rem 3rem;
+}
+
+.public-profile-avatar-wrap {
+  flex-shrink: 0;
+}
+
+.public-profile-avatar {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.public-profile-avatar-placeholder {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(196, 164, 255, 0.9), rgba(217, 191, 214, 0.9));
+  color: #2f2438;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Lora', Georgia, serif;
+  font-size: 2.4rem;
+  letter-spacing: 0.12em;
+}
+
+.public-profile-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.public-profile-name {
+  font-family: 'Lora', Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: #2f2438;
+}
+
+.public-profile-username {
+  color: #7a6b9a;
+  margin-top: 0.4rem;
+}
+
+.public-profile-bio {
+  color: #3f344c;
+  line-height: 1.9;
+}
+
+.public-profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.public-profile-stat-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+  border: 1px solid rgba(139, 123, 168, 0.18);
+  padding: 1.2rem 1.6rem;
+  text-align: center;
+}
+
+.public-profile-stat-number {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 1.8rem;
+  color: #2f2438;
+}
+
+.public-profile-stat-label {
+  color: #6f6285;
+}
+
+.public-profile-collection {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+.public-profile-section-header h2 {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 1.8rem;
+  color: #2f2438;
+}
+
+.public-profile-section-header p {
+  color: #6f6285;
+}
+
+.public-profile-empty {
+  text-align: center;
+  padding: 2.6rem 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  border: 1px solid rgba(139, 123, 168, 0.18);
+}
+
+.public-profile-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.6rem;
+}
+
+.public-profile-item-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 14px;
+  border: 1px solid rgba(139, 123, 168, 0.18);
+  box-shadow: 0 30px 40px -30px rgba(47, 36, 56, 0.9);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-profile-item-cover-wrap {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  background: linear-gradient(160deg, rgba(196, 164, 255, 0.25), rgba(217, 191, 214, 0.18));
+}
+
+.public-profile-item-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.public-profile-item-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Lora', Georgia, serif;
+  font-size: 2.2rem;
+  color: #2f2438;
+}
+
+.public-profile-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.1rem 1.3rem 1.4rem;
+}
+
+.public-profile-item-title {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 1.2rem;
+  color: #2f2438;
+}
+
+.public-profile-item-creator {
+  color: #6f6285;
+}
+
+.public-profile-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.public-profile-item-badge {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 123, 168, 0.25);
+  color: #6f6285;
+  text-transform: capitalize;
+}
+
+.public-profile-item-rating {
+  color: var(--accent-violet, #6B46C1);
+}
+
+@media (max-width: 880px) {
+  .public-profile-hero-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+}

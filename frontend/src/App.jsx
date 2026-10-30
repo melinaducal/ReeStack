@@ -13,6 +13,9 @@ import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import Chatbot from './pages/Chatbot'
 import Settings from './pages/Settings'
+import Profile from './pages/Profile'
+import UsersExplore from './pages/UsersExplore'
+import UserPublicProfile from './pages/UserPublicProfile'
 import './App.css'
 
 function App() {
@@ -53,6 +56,9 @@ function App() {
           <Route path="/" element={isAuthenticated ? <Feed /> : <Navigate to="/login" replace />} />
           <Route path="/stack" element={isAuthenticated ? <Home /> : <Navigate to="/login" replace />} />
           <Route path="/settings" element={isAuthenticated ? <Settings /> : <Navigate to="/login" replace />} />
+          <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" replace />} />
+          <Route path="/users" element={isAuthenticated ? <UsersExplore /> : <Navigate to="/login" replace />} />
+          <Route path="/users/:id" element={isAuthenticated ? <UserPublicProfile /> : <Navigate to="/login" replace />} />
           <Route path="/add" element={isAuthenticated ? <AddLibrarySelector /> : <Navigate to="/login" replace />} />
           <Route path="/add-item" element={isAuthenticated ? <AddItem /> : <Navigate to="/login" replace />} />
           <Route path="/add-library/browse" element={isAuthenticated ? <AddLibraryBrowse /> : <Navigate to="/login" replace />} />

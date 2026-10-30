@@ -1,0 +1,121 @@
+.users-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.users-header h1 {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 2.4rem;
+  color: #2f2438;
+}
+
+.users-header p {
+  color: #6f6285;
+  margin-top: 0.4rem;
+}
+
+.users-search {
+  display: flex;
+  gap: 0.8rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(139, 123, 168, 0.18);
+  border-radius: 999px;
+  padding: 0.6rem 0.8rem 0.6rem 1.6rem;
+  box-shadow: 0 30px 40px -30px rgba(47, 36, 56, 0.9);
+}
+
+.users-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.users-search-btn {
+  border: none;
+  background: var(--accent-violet, #6B46C1);
+  color: #ffffff;
+  padding: 0.6rem 1.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.users-state {
+  color: #6f6285;
+}
+
+.users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.4rem;
+}
+
+.users-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(139, 123, 168, 0.18);
+  border-radius: 14px;
+  padding: 1rem 1.2rem;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 30px 40px -30px rgba(47, 36, 56, 0.9);
+}
+
+.users-card-avatar img,
+.users-card-avatar-placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+}
+
+.users-card-avatar-placeholder {
+  background: linear-gradient(135deg, rgba(196, 164, 255, 0.9), rgba(217, 191, 214, 0.9));
+  color: #2f2438;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.08em;
+}
+
+.users-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.users-card-name {
+  color: #2f2438;
+  font-weight: 500;
+}
+
+.users-card-username {
+  color: #7a6b9a;
+}
+
+.users-card-bio {
+  color: #6f6285;
+  font-size: 0.98rem;
+  margin-top: 0.4rem;
+}
+
+.users-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #6f6285;
+}
+
+.users-pagination button {
+  border: 1px solid rgba(139, 123, 168, 0.25);
+  background: transparent;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+}

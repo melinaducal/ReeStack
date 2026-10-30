@@ -1,12 +1,15 @@
 .navbar {
-  background: rgba(245, 235, 221, 0.95);
-  padding: 0.875rem 0;
-  border-bottom: 1px solid rgba(188, 96, 66, 0.25);
-  box-shadow: none;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(139, 123, 168, 0.18);
+  padding: 1rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .navbar-container {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
@@ -15,11 +18,11 @@
 }
 
 .navbar-logo {
-  color: #233F49;
+  font-family: 'Lora', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 600;
+  color: #2f2438;
   text-decoration: none;
-  font-family: 'Lora', Georgia, serif;
   letter-spacing: -0.01em;
 }
 
@@ -31,27 +34,74 @@
 }
 
 .navbar-link {
-  color: #233F49;
+  color: #3f344c;
   text-decoration: none;
+  font-size: 0.95rem;
   transition: color 0.2s ease;
-  font-weight: 400;
 }
 
 .navbar-link:hover {
-  color: #BC6042;
+  color: var(--accent-violet, #6B46C1);
 }
 
 .navbar-logout {
   background: none;
   border: none;
-  color: #BC6042;
+  color: #8b5a5a;
   font-family: 'Inter', sans-serif;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: opacity 0.2s ease;
-  font-weight: 500;
+  padding: 0.25rem 0;
 }
 
 .navbar-logout:hover {
-  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.navbar-profile {
+  position: relative;
+}
+
+.navbar-profile-btn {
+  background: none;
+  border: none;
+  color: #3f344c;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.navbar-profile-menu {
+  position: absolute;
+  right: 0;
+  top: 120%;
+  background: #ffffff;
+  border: 1px solid rgba(139, 123, 168, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 30px 40px -30px rgba(47, 36, 56, 0.9);
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.navbar-profile-item {
+  padding: 0.7rem 1rem;
+  text-decoration: none;
+  color: #3f344c;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.navbar-profile-item:hover {
+  background: rgba(196, 164, 255, 0.12);
+}
+
+.navbar-profile-logout {
+  color: #8b5a5a;
 }
