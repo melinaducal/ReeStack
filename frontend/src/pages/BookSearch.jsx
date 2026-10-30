@@ -51,7 +51,7 @@ function BookSearch() {
     try {
       const response = await api.get('/books/search', {
         params: {
-          genres: selectedGenres,
+          genres: selectedGenres.join(','),
           mode: 'or'
         }
       })
@@ -127,6 +127,8 @@ function BookSearch() {
           </header>
           {loading ? (
             <p className="loading">Buscando libros...</p>
+          ) : books.length === 0 ? (
+            <p className="loading">No encontramos libros para esos géneros. Probá con otros o con un solo género.</p>
           ) : (
             <div className="books-grid">
               {books.map((book, idx) => {

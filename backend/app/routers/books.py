@@ -1,19 +1,23 @@
-import httpx
-import os
+import asyncio
 import time
-from fastapi import APIRouter, Depends, HTTPException, Query
+import unicodedata
+from typing import List, Optional
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from typing import Optional, List
+
+from app.auth.deps import get_current_user
 from app.database import get_db
 from app.models import Item, User
-from app.auth.deps import get_current_user
 
 router = APIRouter(prefix="/books", tags=["books"])
 
+GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
+OPEN_LIBRARY_SUBJECT_URL = "https://openlibrary.org/subjects/{slug}.json"
+
 _cache = {}
 _cache_ttl = 300
-_last_request_time = 0
-_min_interval = 0.2
 
 
 def _check_cache(key):
@@ -26,6 +30,104 @@ def _check_cache(key):
 
 def _set_cache(key, data):
     _cache[key] = (data, time.time())
+
+
+def _norm_text(value) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = text.lower().replace("-", " ").replace("_", " ")
+    return " ".join(text.split())
+
+
+# Canonical genre table: Spanish label + Google Books subject + Open Library slug.
+# Every entry maps a real genre to terms that actually exist in the providers,
+# so we never invent genres nor assign one without provider evidence.
+GENRE_TABLE = {}
+
+
+def _register_genre(label, slugs, subjects, aliases=()):
+    entry = {"label": label, "slugs": list(slugs), "subjects": list(subjects)}
+    for alias in (label, *aliases):
+        GENRE_TABLE[_norm_text(alias)] = entry
+
+
+_register_genre("Ficción", ["fiction"], ["fiction"], ["novela", "novelas", "fiction"])
+_register_genre("Romance", ["romance"], ["romance"], ["romántico", "romántica"])
+_register_genre("Misterio", ["mystery"], ["mystery"], ["mystery", "detectivesco"])
+_register_genre("Fantasía", ["fantasy"], ["fantasy"], ["fantasy"])
+_register_genre(
+    "Ciencia Ficción",
+    ["science_fiction"],
+    ["science fiction"],
+    ["ciencia ficcion", "sci fi", "science fiction", "cf"],
+)
+_register_genre("Terror", ["horror"], ["horror"], ["horror"])
+_register_genre(
+    "Histórico",
+    ["historical_fiction"],
+    ["historical fiction"],
+    ["historical fiction", "novela historica"],
+)
+_register_genre("Biografía", ["biography"], ["biography"], ["biography", "memorias", "memoir"])
+_register_genre("Autoayuda", ["self_help"], ["self-help"], ["self help", "self-help"])
+_register_genre("Poesía", ["poetry"], ["poetry"], ["poetry"])
+_register_genre("Thriller", ["thriller"], ["thriller"], ["suspenso", "suspense"])
+_register_genre("Aventura", ["adventure"], ["adventure"], ["adventure"])
+_register_genre("Drama", ["drama"], ["drama"])
+_register_genre(
+    "Infantil",
+    ["juvenile_fiction", "children_s_literature"],
+    ["juvenile fiction", "children's literature"],
+    ["children", "childrens", "children's"],
+)
+_register_genre(
+    "Juvenil",
+    ["young_adult", "juvenile_fiction"],
+    ["young adult", "juvenile fiction"],
+    ["young adult", "ya"],
+)
+
+
+def resolve_genres(raw_values) -> List[dict]:
+    """Turn user input (ES/EN, with or without accents, comma separated) into canonical genres."""
+    resolved = []
+    seen = set()
+
+    for raw in raw_values:
+        if raw is None:
+            continue
+        for part in str(raw).split(","):
+            part = part.strip()
+            if not part:
+                continue
+            entry = GENRE_TABLE.get(_norm_text(part))
+            if entry:
+                label = entry["label"]
+                slugs = entry["slugs"]
+                subjects = entry["subjects"]
+            else:
+                label = part
+                slugs = [_norm_text(part).replace(" ", "_")]
+                subjects = [part]
+            key = _norm_text(label)
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved.append({"label": label, "slugs": slugs, "subjects": subjects})
+
+    return resolved
+
+
+def _extract_genre_values(request: Request, genres: Optional[List[str]], genre: Optional[str]):
+    values = []
+    # Axios serializes arrays as genres[]=a&genres[]=b, other clients use genres=a&genres=b.
+    values.extend(request.query_params.getlist("genres"))
+    values.extend(request.query_params.getlist("genres[]"))
+    if genre:
+        values.append(genre)
+    if genres:
+        values.extend(genres)
+    return values
 
 
 def normalize_google_books(item: dict) -> dict:
@@ -48,7 +150,7 @@ def normalize_google_books(item: dict) -> dict:
         "description": volume_info.get("description"),
         "isbn": isbn,
         "published_date": volume_info.get("publishedDate"),
-        "genres": categories
+        "genres": categories,
     }
 
 
@@ -63,260 +165,275 @@ def normalize_open_library_docs(docs: list) -> list:
         cover_id = doc.get("cover_i")
         cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if cover_id else None
         subjects = doc.get("subject", []) or []
-        results.append({
-            "title": doc.get("title"),
-            "authors": doc.get("author_name", []) or [],
-            "cover_url": cover_url,
-            "description": None,
-            "isbn": isbn,
-            "published_date": doc.get("first_publish_year"),
-            "genres": subjects[:5]
-        })
+        results.append(
+            {
+                "title": doc.get("title"),
+                "authors": doc.get("author_name", []) or [],
+                "cover_url": cover_url,
+                "description": None,
+                "isbn": isbn,
+                "published_date": doc.get("first_publish_year"),
+                "genres": subjects[:5],
+            }
+        )
     return results
 
 
 normalize_open_library = normalize_open_library_docs
 
 
+def _title_key(item: dict) -> str:
+    return _norm_text(item.get("title"))
+
+
+def _union_genres(*lists):
+    merged = []
+    seen = set()
+    for values in lists:
+        for value in values or []:
+            key = _norm_text(value)
+            if key and key not in seen:
+                seen.add(key)
+                merged.append(value)
+    return merged
+
+
+async def _google_subject(client, term: str, errors: list, max_results: int = 20):
+    try:
+        response = await client.get(
+            GOOGLE_BOOKS_URL,
+            params={"q": f'subject:"{term}"', "maxResults": max_results},
+        )
+    except httpx.HTTPError:
+        errors.append(f"google_request_failed:{term}")
+        return []
+
+    if response.status_code != 200:
+        errors.append(f"google_status_{response.status_code}:{term}")
+        return []
+
+    items = (response.json().get("items") or [])
+    results = []
+    seen = set()
+    for item in items:
+        norm = normalize_google_books(item)
+        key = _title_key(norm)
+        if norm.get("title") and key not in seen:
+            seen.add(key)
+            results.append(norm)
+    return results
+
+
+async def _open_library_subject(client, genre: dict, errors: list):
+    for slug in genre["slugs"]:
+        try:
+            response = await client.get(
+                OPEN_LIBRARY_SUBJECT_URL.format(slug=slug), params={"limit": 50}
+            )
+        except httpx.HTTPError:
+            errors.append(f"open_library_request_failed:{slug}")
+            continue
+
+        if response.status_code != 200:
+            errors.append(f"open_library_status_{response.status_code}:{slug}")
+            continue
+
+        works = response.json().get("works") or []
+        results = []
+        seen = set()
+        for work in works:
+            title = work.get("title")
+            key = _title_key({"title": title})
+            if not title or key in seen:
+                continue
+            seen.add(key)
+            cover_id = work.get("cover_id")
+            authors = work.get("authors", []) or []
+            results.append(
+                {
+                    "title": title,
+                    "authors": [a.get("name", "") for a in authors if a.get("name")],
+                    "cover_url": (
+                        f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
+                        if cover_id
+                        else None
+                    ),
+                    "description": None,
+                    "isbn": None,
+                    "published_date": work.get("first_publish_year"),
+                    "genres": [],
+                }
+            )
+        if results:
+            return results
+
+    return []
+
+
+async def _genre_results(client, genre: dict, errors: list):
+    """Return provider-backed results for one canonical genre and the source used."""
+    results = []
+    source = None
+
+    for term in genre["subjects"]:
+        results = await _google_subject(client, term, errors)
+        if results:
+            source = "google_books"
+            break
+
+    if not results:
+        results = await _open_library_subject(client, genre, errors)
+        if results:
+            source = "open_library"
+
+    for item in results:
+        item["genres"] = _union_genres(item.get("genres"), [genre["label"]])
+        item["matched_genres"] = [genre["label"]]
+
+    return results, source
+
+
+async def _search_by_genres(genres: List[dict], mode: str):
+    errors = []
+    sources = set()
+    all_items = []
+
+    async with httpx.AsyncClient(
+        timeout=20.0, headers={"User-Agent": "ReeStack/1.0"}
+    ) as client:
+        if mode == "and":
+            per_genre = []
+            for genre in genres:
+                results, source = await _genre_results(client, genre, errors)
+                if source:
+                    sources.add(source)
+                per_genre.append({_title_key(item): item for item in results})
+                await asyncio.sleep(0.05)
+
+            common = set(per_genre[0]) if per_genre else set()
+            for title_keys in per_genre[1:]:
+                common &= set(title_keys)
+
+            for key in sorted(common):
+                item = per_genre[0][key]
+                item["matched_genres"] = [genre["label"] for genre in genres]
+                item["genres"] = _union_genres(
+                    item.get("genres"), [genre["label"] for genre in genres]
+                )
+                all_items.append(item)
+        else:
+            merged = {}
+            order = []
+            for genre in genres:
+                results, source = await _genre_results(client, genre, errors)
+                if source:
+                    sources.add(source)
+                for item in results:
+                    key = _title_key(item)
+                    if not key:
+                        continue
+                    if key not in merged:
+                        merged[key] = item
+                        order.append(key)
+                    else:
+                        existing = merged[key]
+                        existing["genres"] = _union_genres(
+                            existing.get("genres"), item.get("genres")
+                        )
+                        existing["matched_genres"] = _union_genres(
+                            existing.get("matched_genres"), item.get("matched_genres")
+                        )
+                await asyncio.sleep(0.05)
+            all_items = [merged[key] for key in order]
+
+    return all_items, sources, errors
+
+
 @router.get("/search")
 async def search_books(
+    request: Request,
     q: str = "",
     genres: Optional[List[str]] = Query(default=None),
     genre: Optional[str] = None,
     mode: str = "or",
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=50),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    genre_list = []
-    if genres:
-        for g in genres:
-            if g is None:
-                continue
-            gs = str(g)
-            if not gs.strip():
-                continue
-            for gg in gs.split(","):
-                gg2 = gg.strip()
-                if gg2:
-                    genre_list.append(gg2)
-    if genre and str(genre).strip():
-        for g in str(genre).split(","):
-            g2 = g.strip()
-            if g2:
-                genre_list.append(g2)
-    seen = set()
-    genre_list_clean = []
-    for g in genre_list:
-        gl = g.lower()
-        if gl not in seen:
-            seen.add(gl)
-            genre_list_clean.append(g)
-    
-    if genre_list_clean:
-        mode = mode.lower() if mode else "or"
-        cache_key = f"genre:{mode}:{':'.join(sorted([x.lower() for x in genre_list_clean]))}"
+    resolved = resolve_genres(_extract_genre_values(request, genres, genre))
+
+    if resolved:
+        mode = (mode or "or").lower()
+        if mode not in ("or", "and"):
+            raise HTTPException(status_code=400, detail="mode debe ser 'or' o 'and'")
+
+        cache_key = "genre:{}:{}:{}:{}".format(
+            mode,
+            ":".join(sorted(_norm_text(g["label"]) for g in resolved)),
+            page,
+            limit,
+        )
         cached = _check_cache(cache_key)
         if cached is not None:
             return cached
-        
-        global _last_request_time
-        if time.time() - _last_request_time < _min_interval:
-            time.sleep(max(0, _min_interval - (time.time() - _last_request_time)))
-        _last_request_time = time.time()
-        
-        async with httpx.AsyncClient(timeout=30.0, headers={"User-Agent": "ReeStack/1.0"}) as client:
-            errors = []
-            # Try Google Books first
-            try:
-                if mode == "and":
-                    query = "subject:" + "+".join(genre_list_clean)
-                    try:
-                        resp = await client.get(
-                            "https://www.googleapis.com/books/v1/volumes",
-                            params={"q": query, "maxResults": 40, "langRestrict": "es"}
-                        )
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            items = data.get("items", []) or []
-                            results_google = []
-                            for item in items:
-                                norm = normalize_google_books(item)
-                                if not norm.get("title"):
-                                    continue
-                                gnorm = [str(x).lower() for x in norm.get("genres", [])]
-                                ok = True
-                                for g in genre_list_clean:
-                                    gl = g.lower()
-                                    if not any(gl in x for x in gnorm):
-                                        ok = False
-                                        break
-                                if ok and not any(r.get("title") == norm.get("title") for r in results_google):
-                                    results_google.append(norm)
-                            if results_google:
-                                result = {"source": "google_books", "mode": "and", "genres": genre_list_clean, "results": results_google}
-                                _set_cache(cache_key, result)
-                                return result
-                        elif resp.status_code == 429:
-                            errors.append("google_books_quota_exceeded")
-                        else:
-                            errors.append(f"google_books_error_{resp.status_code}")
-                    except Exception:
-                        errors.append("google_books_request_failed")
-                else:
-                    results_google = []
-                    for g in genre_list_clean:
-                        try:
-                            query = f"subject:{g}"
-                            resp = await client.get(
-                                "https://www.googleapis.com/books/v1/volumes",
-                                params={"q": query, "maxResults": 20, "langRestrict": "es"}
-                            )
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                items = data.get("items", []) or []
-                                for item in items:
-                                    norm = normalize_google_books(item)
-                                    if norm.get("title") and not any(r.get("title") == norm.get("title") for r in results_google):
-                                        results_google.append(norm)
-                            elif resp.status_code == 429:
-                                errors.append("google_books_quota_exceeded")
-                            else:
-                                errors.append(f"google_books_error_{resp.status_code}")
-                        except Exception:
-                            errors.append("google_books_request_failed")
-                            continue
-                    if results_google:
-                        result = {"source": "google_books", "mode": "or", "genres": genre_list_clean, "results": results_google}
-                        _set_cache(cache_key, result)
-                        return result
-            except Exception:
-                errors.append("google_books_exception")
-            
-            # Fallback to Open Library
-            try:
-                results_ol = []
-                if mode == "and":
-                    key_sets = []
-                    work_by_key = {}
-                    for g in genre_list_clean:
-                        try:
-                            resp = await client.get(f"https://openlibrary.org/subjects/{g.lower().replace(' ', '_')}.json", params={"limit": 100})
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                works = data.get("works", []) or []
-                                keys = set()
-                                for w in works:
-                                    wkey = w.get("key")
-                                    if not wkey:
-                                        continue
-                                    keys.add(wkey)
-                                    if wkey not in work_by_key:
-                                        work_by_key[wkey] = w
-                                if keys:
-                                    key_sets.append(keys)
-                            else:
-                                errors.append(f"ol_{g}_status_{resp.status_code}")
-                        except Exception:
-                            errors.append(f"ol_{g}_failed")
-                            continue
-                    if key_sets:
-                        common_keys = key_sets[0]
-                        for s in key_sets[1:]:
-                            common_keys = common_keys & s
-                        if common_keys:
-                            for wkey in common_keys:
-                                work = work_by_key.get(wkey)
-                                if not work:
-                                    continue
-                                title = work.get("title")
-                                if not title or any(r.get("title") == title for r in results_ol):
-                                    continue
-                                cover_id = work.get("cover_id")
-                                cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if cover_id else None
-                                authors = work.get("authors", []) or []
-                                author_names = [a.get("name", "") for a in authors if a.get("name")]
-                                results_ol.append({
-                                    "title": title,
-                                    "authors": author_names,
-                                    "cover_url": cover_url,
-                                    "description": None,
-                                    "isbn": None,
-                                    "published_date": work.get("first_publish_year"),
-                                    "genres": genre_list_clean
-                                })
-                    result = {"source": "open_library", "mode": "and", "genres": genre_list_clean, "results": results_ol, "fallback": True, "errors": errors}
-                    _set_cache(cache_key, result)
-                    return result
-                else:
-                    for g in genre_list_clean:
-                        try:
-                            resp = await client.get(f"https://openlibrary.org/subjects/{g.lower().replace(' ', '_')}.json", params={"limit": 50})
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                works = data.get("works", []) or []
-                                for work in works:
-                                    title = work.get("title")
-                                    if not title or any(r.get("title") == title for r in results_ol):
-                                        continue
-                                    cover_id = work.get("cover_id")
-                                    cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if cover_id else None
-                                    authors = work.get("authors", []) or []
-                                    author_names = [a.get("name", "") for a in authors if a.get("name")]
-                                    results_ol.append({
-                                        "title": title,
-                                        "authors": author_names,
-                                        "cover_url": cover_url,
-                                        "description": None,
-                                        "isbn": None,
-                                        "published_date": work.get("first_publish_year"),
-                                        "genres": [g]
-                                    })
-                            else:
-                                errors.append(f"ol_{g}_status_{resp.status_code}")
-                        except Exception:
-                            errors.append(f"ol_{g}_failed")
-                            continue
-                    if results_ol:
-                        result = {"source": "open_library", "mode": "or", "genres": genre_list_clean, "results": results_ol, "fallback": True, "errors": errors}
-                        _set_cache(cache_key, result)
-                        return result
-                    raise HTTPException(status_code=503, detail={"error": "No se encontraron resultados en Open Library (OR)", "errors": errors})
-            except HTTPException:
-                raise
-            except Exception:
-                raise HTTPException(status_code=503, detail={"error": "Error en fallback Open Library", "errors": errors})
-    
+
+        all_items, sources, errors = await _search_by_genres(resolved, mode)
+
+        total = len(all_items)
+        start = (page - 1) * limit
+        page_items = all_items[start : start + limit]
+        primary_source = "google_books" if "google_books" in sources else "open_library"
+
+        result = {
+            "source": primary_source,
+            "sources": sorted(sources),
+            "mode": mode,
+            "genres": [g["label"] for g in resolved],
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "results": page_items,
+            "errors": errors,
+        }
+        _set_cache(cache_key, result)
+        return result
+
     if not q or q.strip() == "":
-        raise HTTPException(status_code=400, detail="Parámetro q requerido o géneros requeridos")
-    
+        raise HTTPException(
+            status_code=400,
+            detail="Enviá 'q' (título/autor/ISBN) o uno o más géneros en 'genres'",
+        )
+
     query = q.strip()
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get("https://www.googleapis.com/books/v1/volumes", params={"q": query, "maxResults": 20})
-            if resp.status_code == 200:
-                data = resp.json()
-                items = data.get("items", []) or []
+            response = await client.get(
+                GOOGLE_BOOKS_URL, params={"q": query, "maxResults": 20}
+            )
+            if response.status_code == 200:
+                items = response.json().get("items", []) or []
                 results = []
                 for item in items:
                     norm = normalize_google_books(item)
                     if norm.get("title"):
                         results.append(norm)
-                return {"source": "google_books", "results": results}
+                return {"source": "google_books", "total": len(results), "results": results}
     except Exception:
         pass
-    
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get("https://openlibrary.org/search.json", params={"q": query, "limit": 20})
-            if resp.status_code == 200:
-                data = resp.json()
-                docs = data.get("docs", []) or []
-                results = normalize_open_library(docs)
-                results = [r for r in results if r.get("title")]
-                return {"source": "open_library", "results": results}
+            response = await client.get(
+                "https://openlibrary.org/search.json", params={"q": query, "limit": 20}
+            )
+            if response.status_code == 200:
+                docs = response.json().get("docs", []) or []
+                results = [r for r in normalize_open_library(docs) if r.get("title")]
+                return {"source": "open_library", "total": len(results), "results": results}
     except Exception:
         pass
-    
+
     raise HTTPException(status_code=503, detail="No se pudo obtener resultados de búsqueda")
 
 
@@ -336,7 +453,7 @@ def save_book(book: dict, db: Session = Depends(get_db), current_user: User = De
         creator=creator,
         cover_url=book.get("cover_url"),
         thoughts=book.get("description"),
-        user_id=current_user.id
+        user_id=current_user.id,
     )
     db.add(db_item)
     db.commit()
