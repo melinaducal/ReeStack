@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, ForeignKey, text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -18,5 +18,12 @@ class Item(Base):
     pages = Column(Integer)
     current_page = Column(Integer, default=0)
     reading_progress = Column(Integer, default=0)
+    is_public = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("1"),
+        index=True,
+    )
 
     owner = relationship("User")

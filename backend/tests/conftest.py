@@ -33,6 +33,20 @@ def override_get_db():
         db.close()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_database():
+    """Always use the in-memory DB, even if a test module overrode get_db."""
+    Base.metadata.create_all(bind=engine)
+    previous = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    if previous is not None:
+        app.dependency_overrides[get_db] = previous
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    Base.metadata.drop_all(bind=engine)
+
+
 app.dependency_overrides[get_db] = override_get_db
 
 
