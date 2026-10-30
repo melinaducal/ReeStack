@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String, Text, ForeignKey, text
+from sqlalchemy import Boolean, Column, Float, Integer, String, Text, ForeignKey, text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -12,7 +12,8 @@ class Item(Base):
     type = Column(String, nullable=False)  # book, movie, series, music, paper
     creator = Column(String)
     year = Column(Integer)
-    rating = Column(Integer)
+    # Fractional stars are allowed (1/3, 1/2, 1/6 of a star), so this must be REAL.
+    rating = Column(Float)
     thoughts = Column(Text)
     cover_url = Column(String)
     pages = Column(Integer)

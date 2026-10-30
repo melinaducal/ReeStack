@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -7,7 +7,7 @@ class ItemBase(BaseModel):
     type: str
     creator: Optional[str] = None
     year: Optional[int] = None
-    rating: Optional[int] = None
+    rating: Optional[float] = None
     thoughts: Optional[str] = None
     cover_url: Optional[str] = None
     pages: Optional[int] = None
@@ -17,7 +17,8 @@ class ItemBase(BaseModel):
 
 
 class ItemCreate(ItemBase):
-    pass
+    # Stars go from 1 to 5 and accept fractions (1/3, 1/2, 1/6 of a star).
+    rating: Optional[float] = Field(default=None, ge=1, le=5)
 
 
 class ItemUpdate(BaseModel):
@@ -25,7 +26,7 @@ class ItemUpdate(BaseModel):
     type: Optional[str] = None
     creator: Optional[str] = None
     year: Optional[int] = None
-    rating: Optional[int] = None
+    rating: Optional[float] = Field(default=None, ge=1, le=5)
     thoughts: Optional[str] = None
     cover_url: Optional[str] = None
     pages: Optional[int] = None
@@ -51,7 +52,7 @@ class PublicItemResponse(BaseModel):
     type: str
     creator: Optional[str] = None
     year: Optional[int] = None
-    rating: Optional[int] = None
+    rating: Optional[float] = None
     thoughts: Optional[str] = None
     cover_url: Optional[str] = None
 

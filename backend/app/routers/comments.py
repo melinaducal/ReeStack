@@ -48,5 +48,6 @@ def get_rating_summary(item_id: int, db: Session = Depends(get_db)):
     if not comments:
         return {"average": 0, "count": 0}
     total = sum(c.rating for c in comments)
-    avg = round(total / len(comments), 1)
+    # Three decimals keep fractional stars (1/3, 1/6) meaningful.
+    avg = round(total / len(comments), 3)
     return {"average": avg, "count": len(comments)}
