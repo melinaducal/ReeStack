@@ -11,6 +11,11 @@ env/
 *.sqlite
 *.sqlite3
 
+# Local environment (never commit real keys)
+.env
+.env.*
+!.env.example
+
 # Node
 node_modules/
 dist/
