@@ -33,8 +33,10 @@ COVER_ART_ARCHIVE_URL = "https://coverartarchive.org/release/{mbid}/front-500"
 TVMAZE_SEARCH_URL = "https://api.tvmaze.com/search/shows"
 WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php"
 TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
+TMDB_TV_SEARCH_URL = "https://api.themoviedb.org/3/search/tv"
 TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/w500{path}"
 CROSSREF_WORKS_URL = "https://api.crossref.org/works"
+GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 
 USER_AGENT = "ReeStack/1.0 (contact: dev@reestack.local)"
 
@@ -139,6 +141,29 @@ def _normalize_open_library_doc(doc: dict) -> Optional[dict]:
     }
 
 
+def _normalize_google_book(volume: dict) -> Optional[dict]:
+    info = (volume or {}).get("volumeInfo") or {}
+    title = info.get("title")
+    if not title:
+        return None
+    subtitles = info.get("subtitle")
+    if subtitles:
+        title = f"{title}: {subtitles}"
+    images = info.get("imageLinks") or {}
+    cover = images.get("thumbnail") or images.get("smallThumbnail")
+    if cover:
+        cover = cover.replace("http://", "https://").replace("&zoom=1", "&zoom=2")
+    return {
+        "external_id": volume.get("id"),
+        "title": title,
+        "creator": ", ".join(info.get("authors") or []) or None,
+        "year": _year(info.get("publishedDate")),
+        "cover_url": cover,
+        "description": _clean_html(info.get("description") or "") or None,
+        "source": "google_books",
+    }
+
+
 def _normalize_itunes_album(item: dict) -> Optional[dict]:
     title = item.get("collectionName") or item.get("trackName")
     if not title:
@@ -212,6 +237,22 @@ def _normalize_tmdb_movie(movie: dict) -> Optional[dict]:
         "year": _year(movie.get("release_date")),
         "cover_url": TMDB_IMAGE_URL.format(path=poster) if poster else None,
         "description": movie.get("overview") or None,
+        "source": "tmdb",
+    }
+
+
+def _normalize_tmdb_show(show: dict) -> Optional[dict]:
+    name = show.get("name") or show.get("original_name")
+    if not name:
+        return None
+    poster = show.get("poster_path")
+    return {
+        "external_id": str(show.get("id") or ""),
+        "title": name,
+        "creator": None,
+        "year": _year(show.get("first_air_date")),
+        "cover_url": TMDB_IMAGE_URL.format(path=poster) if poster else None,
+        "description": show.get("overview") or None,
         "source": "tmdb",
     }
 
@@ -310,7 +351,28 @@ async def _search_books(client, query: str, errors: List[str]):
         return [], None
 
     results = [r for r in (_normalize_open_library_doc(d) for d in docs) if r]
-    return results, "open_library"
+
+    # Google Books is optional and only needs a key for extra quota. It widens
+    # coverage when Open Library returns too little for a niche query.
+    api_key = (os.getenv("GOOGLE_BOOKS_API_KEY") or "").strip()
+    if api_key and len(results) < 5:
+        params = {"q": query, "maxResults": 20, "key": api_key}
+        try:
+            extra = await client.get(GOOGLE_BOOKS_URL, params=params)
+            if extra.status_code == 200:
+                volumes = extra.json().get("items") or []
+                results.extend(
+                    r for r in (_normalize_google_book(v) for v in volumes) if r
+                )
+            else:
+                errors.append(f"google_books_status_{extra.status_code}")
+        except (httpx.HTTPError, ValueError):
+            errors.append("google_books_request_failed")
+
+    source = "open_library"
+    if any(item.get("source") == "google_books" for item in results):
+        source = "open_library+google_books"
+    return results, source if results else None
 
 
 async def _search_music(client, query: str, errors: List[str]):
@@ -371,25 +433,52 @@ async def _search_series(client, query: str, errors: List[str]):
     try:
         response = await client.get(TVMAZE_SEARCH_URL, params={"q": query})
     except httpx.HTTPError:
+        response = None
         errors.append("tvmaze_request_failed")
-        return [], None
-
-    if response.status_code != 200:
-        errors.append(f"tvmaze_status_{response.status_code}")
-        return [], None
-
-    try:
-        items = response.json() or []
-    except ValueError:
-        errors.append("tvmaze_invalid_json")
-        return [], None
 
     results = []
-    for item in items:
-        show = item.get("show") if isinstance(item, dict) else None
-        normalized = _normalize_tvmaze_show(show) if show else None
-        if normalized:
-            results.append(normalized)
+    if response is not None:
+        if response.status_code != 200:
+            errors.append(f"tvmaze_status_{response.status_code}")
+        else:
+            try:
+                items = response.json() or []
+            except ValueError:
+                items = []
+                errors.append("tvmaze_invalid_json")
+            for item in items:
+                show = item.get("show") if isinstance(item, dict) else None
+                normalized = _normalize_tvmaze_show(show) if show else None
+                if normalized:
+                    results.append(normalized)
+            if results:
+                return results[:PROVIDER_LIMIT], "tvmaze"
+
+    # TMDB covers series that TVMaze does not index (or spells differently).
+    api_key = (os.getenv("TMDB_API_KEY") or "").strip()
+    if api_key:
+        try:
+            extra = await client.get(
+                TMDB_TV_SEARCH_URL,
+                params={
+                    "api_key": api_key,
+                    "query": query,
+                    "language": "es-AR",
+                    "include_adult": "false",
+                },
+            )
+            if extra.status_code == 200:
+                shows = extra.json().get("results") or []
+                results.extend(
+                    r for r in (_normalize_tmdb_show(show) for show in shows) if r
+                )
+                if results:
+                    return results[:PROVIDER_LIMIT], "tmdb"
+            else:
+                errors.append(f"tmdb_tv_status_{extra.status_code}")
+        except (httpx.HTTPError, ValueError):
+            errors.append("tmdb_tv_request_failed")
+
     return results[:PROVIDER_LIMIT], "tvmaze" if results else None
 
 
@@ -604,6 +693,38 @@ _PROVIDERS = {
 
 
 # ---------------------------------------------------------------------------
+# Reusable entry point (used by /catalog/search and the recommender)
+# ---------------------------------------------------------------------------
+
+
+async def search_catalog_results(media_type: str, query: str):
+    """Run one provider with caching and return ``(results, source, errors)``.
+
+    Providers never raise for network or quota problems: the caller gets an
+    empty list plus an error code instead.
+    """
+    cache_key = f"{media_type}:{_norm_text(query)}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    errors = []
+    try:
+        async with httpx.AsyncClient(
+            timeout=25.0,
+            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+        ) as client:
+            results, source = await _PROVIDERS[media_type](client, query, errors)
+    except (httpx.HTTPError, ValueError):
+        results, source = [], None
+        errors = [f"{media_type}_provider_failed"]
+
+    payload = (_dedupe(results), source, errors)
+    _cache_set(cache_key, payload)
+    return payload
+
+
+# ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
 
@@ -627,24 +748,7 @@ async def search_catalog(
     if len(query) < 2:
         raise HTTPException(status_code=400, detail="Enviá 'q' con al menos 2 caracteres")
 
-    cache_key = f"{media_type}:{_norm_text(query)}"
-    cached = _cache_get(cache_key)
-    if cached is not None:
-        results, source, errors = cached
-    else:
-        errors = []
-        try:
-            async with httpx.AsyncClient(
-                timeout=25.0,
-                headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
-            ) as client:
-                results, source = await _PROVIDERS[media_type](client, query, errors)
-        except (httpx.HTTPError, ValueError):
-            results, source = [], None
-            errors = [f"{media_type}_provider_failed"]
-
-        results = _dedupe(results)
-        _cache_set(cache_key, (results, source, errors))
+    results, source, errors = await search_catalog_results(media_type, query)
 
     total = len(results)
     start = (page - 1) * limit
