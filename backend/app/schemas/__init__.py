@@ -10,4 +10,12 @@ from .item import (
 from .user import UserBase, UserCreate, UserLogin, UserResponse, UserUpdate, UserPublic, UserProfilePublic, CollectionResponse, ForgotPassword, ThemeUpdate
 from .comment import CommentBase, CommentCreate, CommentResponse
 from .like import LikeResponse
+from .chat import (
+    ChatMessage,
+    Recommendation,
+    ChatRecommendResponse,
+    ConversationCreate,
+    ConversationSummary,
+    ConversationTurn,
+)
 

@@ -1,127 +1,210 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional, List
-import httpx
-import os
 import json
+from typing import Dict, List
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.orm import Session
+
+from app.auth.deps import get_current_user
 from app.database import get_db
-from app.models import User, Item
-from app.auth.utils import SECRET_KEY, ALGORITHM
-from jose import jwt
+from app.models import ChatConversation, ChatTurn, Item, User
+from app.schemas import (
+    ChatMessage,
+    ChatRecommendResponse,
+    ConversationCreate,
+    ConversationSummary,
+    ConversationTurn,
+    Recommendation,
+)
+from app.services import recommender
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-class ChatMessage(BaseModel):
-    message: str
+# How many previous turns are sent to the model as context.
+MAX_HISTORY_TURNS = 6
 
-class Recommendation(BaseModel):
-    title: str
-    type: str
-    creator: Optional[str] = None
-    reason: str
-    in_library: bool = False
 
-async def get_current_user(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="No autorizado")
-    try:
-        token = authorization.replace("Bearer ", "")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        user = db.query(User).filter(User.email == email).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="Usuario no encontrado")
-        return user
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token inválido")
+def _owned_conversation(db: Session, user: User, conversation_id: int) -> ChatConversation:
+    conversation = (
+        db.query(ChatConversation)
+        .filter(
+            ChatConversation.id == conversation_id,
+            ChatConversation.user_id == user.id,
+        )
+        .first()
+    )
+    if conversation is None:
+        # Same answer for "does not exist" and "belongs to someone else", so
+        # one user cannot probe another user's history.
+        raise HTTPException(status_code=404, detail="Conversación no encontrada")
+    return conversation
 
-@router.post("/recommend")
-async def recommend(message: ChatMessage, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Get user's library exclusively
-    user_items = db.query(Item).filter(Item.user_id == user.id).all()
-    library = [{"title": i.title, "type": i.type, "creator": i.creator} for i in user_items]
-    
-    # Build context
-    context = f"""Eres un asistente de recomendaciones para ReeStack, una app para libros, películas, series, música y papers.
-    
-Biblioteca del usuario (ya tiene): {json.dumps(library, ensure_ascii=False)}
-    
-Usuario pregunta: {message.message}
-    
-Reglas:
-- Recomienda solo libros, películas, series, música o papers.
-- NO recomiendes nada que ya esté en la biblioteca del usuario.
-- Explica brevemente por qué recomiendas cada uno.
-- Respeta filtros: género, tipo, novedades, etc.
-- Si pide algo relacionado a un álbum/item, busca similitudes.
-- Responde en español, tono cálido y editorial.
-- NO inventes información falsa presentada como real.
-- Sugiere 2-4 recomendaciones máximo.
-    
-Formato de respuesta: JSON con este esquema:
-{{"recommendations": [{{"title": "...", "type": "book|movie|series|music|paper", "creator": "...", "reason": "explicación breve"}}]}}"""
-    
-    api_key = os.getenv("LLM_API_KEY")
-    api_url = os.getenv("LLM_API_URL", "https://openrouter.ai/api/v1/chat/completions")
-    model = os.getenv("LLM_MODEL", "anthropic/claude-3.5-sonnet")
-    
-    if not api_key:
-        raise HTTPException(status_code=500, detail="LLM_API_KEY no configurada")
-    
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                api_url,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": os.getenv("LLM_APP_URL", "http://localhost:5173"),
-                    "X-Title": os.getenv("LLM_APP_NAME", "ReeStack"),
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "user", "content": context}
-                    ],
-                    "temperature": 0.7,
-                },
+
+def _history(conversation: ChatConversation) -> List[Dict[str, str]]:
+    turns = conversation.turns[-MAX_HISTORY_TURNS:]
+    return [{"role": turn.role, "content": turn.content} for turn in turns]
+
+
+def _recommended_titles(conversation: ChatConversation) -> set:
+    titles = set()
+    for turn in conversation.turns:
+        if not turn.recommendations:
+            continue
+        try:
+            payload = json.loads(turn.recommendations)
+        except (TypeError, ValueError):
+            continue
+        for item in payload or []:
+            if isinstance(item, dict) and item.get("title"):
+                titles.add(recommender.normalize(item["title"]))
+    return titles
+
+
+def _summary(conversation: ChatConversation) -> ConversationSummary:
+    return ConversationSummary(
+        id=conversation.id,
+        title=conversation.title,
+        created_at=conversation.created_at,
+        turns=len(conversation.turns),
+    )
+
+
+@router.post("/recommend", response_model=ChatRecommendResponse)
+async def recommend(
+    payload: ChatMessage,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    conversation = None
+    if payload.conversation_id is not None:
+        conversation = _owned_conversation(db, user, payload.conversation_id)
+
+    history = _history(conversation) if conversation else []
+    already_suggested = _recommended_titles(conversation) if conversation else set()
+
+    result = await recommender.recommend(
+        db,
+        user,
+        payload.message,
+        forced_type=payload.type,
+        limit=payload.limit,
+        exclude_consumed=payload.exclude_consumed,
+        exclude_titles=already_suggested,
+        history=history,
+    )
+
+    result["recommendations"] = result["recommendations"][: payload.limit]
+
+    if conversation is not None:
+        if not conversation.title:
+            conversation.title = payload.message.strip()[:80]
+        db.add(
+            ChatTurn(
+                conversation_id=conversation.id,
+                role="user",
+                content=payload.message,
             )
-            response.raise_for_status()
-            data = response.json()
-            content = data["choices"][0]["message"]["content"]
-            
-            # Try to parse JSON
-            try:
-                result = json.loads(content)
-            except:
-                # Try to extract JSON
-                import re
-                match = re.search(r'\{.*\}', content, re.DOTALL)
-                if match:
-                    result = json.loads(match.group())
-                else:
-                    raise HTTPException(status_code=500, detail="Error al parsear respuesta del modelo")
-            
-            return result
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=503, detail="Error de conexión con el modelo de IA")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error al generar recomendaciones")
+        )
+        db.add(
+            ChatTurn(
+                conversation_id=conversation.id,
+                role="assistant",
+                content=result["message"],
+                recommendations=json.dumps(result["recommendations"], ensure_ascii=False),
+            )
+        )
+        db.commit()
+        result["conversation_id"] = conversation.id
+
+    return result
+
+
+@router.post("/conversations", response_model=ConversationSummary, status_code=201)
+def create_conversation(
+    payload: ConversationCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    conversation = ChatConversation(user_id=user.id, title=payload.title)
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return _summary(conversation)
+
+
+@router.get("/conversations", response_model=List[ConversationSummary])
+def list_conversations(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    conversations = (
+        db.query(ChatConversation)
+        .filter(ChatConversation.user_id == user.id)
+        .order_by(ChatConversation.id.desc())
+        .all()
+    )
+    return [_summary(conversation) for conversation in conversations]
+
+
+@router.get("/conversations/{conversation_id}", response_model=List[ConversationTurn])
+def get_conversation(
+    conversation_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    conversation = _owned_conversation(db, user, conversation_id)
+    turns = []
+    for turn in conversation.turns:
+        try:
+            payload = json.loads(turn.recommendations) if turn.recommendations else []
+        except (TypeError, ValueError):
+            payload = []
+        turns.append(
+            ConversationTurn(
+                id=turn.id,
+                role=turn.role,
+                content=turn.content,
+                recommendations=payload,
+                created_at=turn.created_at,
+            )
+        )
+    return turns
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+def delete_conversation(
+    conversation_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    conversation = _owned_conversation(db, user, conversation_id)
+    db.delete(conversation)
+    db.commit()
+    return Response(status_code=204)
+
 
 @router.post("/save")
-async def save_recommendation(rec: Recommendation, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def save_recommendation(
+    rec: Recommendation,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     # Check if already exists in user's library
-    existing = db.query(Item).filter(Item.title == rec.title, Item.user_id == user.id).first()
+    existing = (
+        db.query(Item)
+        .filter(Item.title == rec.title, Item.user_id == user.id)
+        .first()
+    )
     if existing:
         raise HTTPException(status_code=400, detail="Ya existe en tu biblioteca")
-    
+
     db_item = Item(
         title=rec.title,
         type=rec.type,
         creator=rec.creator,
+        year=rec.year,
+        cover_url=rec.cover_url,
         thoughts=f"Recomendado por chatbot: {rec.reason}",
-        user_id=user.id
+        user_id=user.id,
     )
     db.add(db_item)
     db.commit()
