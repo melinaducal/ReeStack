@@ -633,7 +633,7 @@ Archivo `backend/tests/test_chat_isolation.py` (2 pruebas, base en memoria):
 | `test_chat_recommend_only_own_items` | CA-11 |
 | `test_chat_save_assigns_user_id` | CA-17 |
 
-Archivo `backend/tests/test_chat_contextual.py` (15 pruebas, base en memoria,
+Archivo `backend/tests/test_chat_contextual.py` (17 pruebas, base en memoria,
 catálogo, detalles y LLM simulados):
 
 | Prueba | Criterio |
@@ -652,9 +652,11 @@ catálogo, detalles y LLM simulados):
 | `test_llm_interpretation_resolves_the_second_work` | CA-20, RN-18 |
 | `test_llm_chat_answer_without_new_recommendations` | RN-18, CA-26 |
 | `test_llm_failure_degrades_and_still_answers_with_context` | CA-27 |
+| `test_detail_lookup_prefers_the_work_over_derivative_books` | RN-22 |
+| `test_open_library_description_accepts_list_and_dict_shapes` | RN-22 |
 | `test_recommendation_prompt_lists_already_shown_works` | CA-26, RN-09 |
 
-Resultado de la última ejecución: `123 passed` con `pytest tests -q`, sin bases
+Resultado de la última ejecución: `126 passed` con `pytest tests -q`, sin bases
 de datos residuales.
 
 ## 15. Funcionalidades pendientes
