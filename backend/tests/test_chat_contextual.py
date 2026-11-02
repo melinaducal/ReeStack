@@ -241,6 +241,27 @@ def test_c_compares_the_three_and_finds_the_shortest(
     assert "256" in body["message"]
 
 
+def test_c_does_not_pick_a_winner_without_a_criterion(
+    client, auth_headers, fake_catalog, fake_details
+):
+    conversation_id, _first = _first_batch(client, auth_headers, fake_catalog)
+
+    body = _send(client, auth_headers, conversation_id, "¿Cuál es la mejor?")
+
+    assert body["action"] == "compare"
+    assert "La más corta" not in body["message"]
+    assert "extensión" in body["message"]
+
+
+def test_c_compares_by_year_when_asked(client, auth_headers, fake_catalog, fake_details):
+    conversation_id, _first = _first_batch(client, auth_headers, fake_catalog)
+
+    body = _send(client, auth_headers, conversation_id, "¿Cuál es el más antiguo?")
+
+    assert body["action"] == "compare"
+    assert "La más antigua es El sabueso de los Baskerville: 1902" in body["message"]
+
+
 def test_c_does_not_invent_length_when_catalogue_has_no_data(
     client, auth_headers, fake_catalog, monkeypatch
 ):

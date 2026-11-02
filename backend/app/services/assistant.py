@@ -385,6 +385,55 @@ def _asks_compare(haystack: str) -> bool:
     return any(phrase in haystack for phrase in comparison)
 
 
+def _compare_criterion(message: str) -> Optional[str]:
+    """Decide what the user actually wants compared.
+
+    Without an explicit criterion the answer must list data and ask, instead of
+    silently declaring a "winner".
+    """
+    haystack = recommender.normalize(message)
+    length_terms = (
+        "corto",
+        "corta",
+        "cortos",
+        "cortas",
+        "largo",
+        "larga",
+        "largos",
+        "largas",
+        "pagina",
+        "paginas",
+        "duracion",
+        "minuto",
+        "minutos",
+        "extenso",
+        "extensa",
+    )
+    year_terms = (
+        "viejo",
+        "vieja",
+        "viejos",
+        "viejas",
+        "antiguo",
+        "antigua",
+        "antiguos",
+        "antiguas",
+        "nuevo",
+        "nueva",
+        "nuevos",
+        "nuevas",
+        "reciente",
+        "recientes",
+        "ano",
+        "anos",
+    )
+    if any(term in haystack for term in length_terms):
+        return "length"
+    if any(term in haystack for term in year_terms):
+        return "year"
+    return None
+
+
 def _asks_details(haystack: str) -> bool:
     triggers = (
         "de que trata",
@@ -483,7 +532,13 @@ def heuristic_decision(message: str, context: ConversationContext) -> Dict[str, 
     elif _looks_like_recommendation_request(haystack):
         action = "recommend"
 
-    if action in ("details", "compare", "spoiler") and not targets:
+    if action == "compare" and not targets:
+        targets = (
+            list(pool)
+            if len(pool) > 1
+            else (context.last_focus[-1:] or pool[-1:])
+        )
+    elif action in ("details", "spoiler") and not targets:
         targets = context.last_focus[-1:] or pool[-1:]
     if action in ("details", "compare", "spoiler") and not targets:
         action = "chat"
@@ -969,7 +1024,9 @@ async def answer_details(
     }
 
 
-async def answer_compare(targets: Sequence[Work]) -> Dict[str, Any]:
+async def answer_compare(
+    targets: Sequence[Work], *, criterion: Optional[str] = None
+) -> Dict[str, Any]:
     enriched = [await fetch_details(work) for work in targets]
     rows = []
     comparable: List[Tuple[Work, str, int]] = []
@@ -991,6 +1048,29 @@ async def answer_compare(targets: Sequence[Work]) -> Dict[str, Any]:
 
     message = "Comparo las obras de la conversación:\n" + "\n".join(rows)
 
+    if criterion == "year":
+        dated = [work for work in enriched if work.year]
+        if len(dated) < 2:
+            message += (
+                "\n\nNo tengo el año de suficientes obras, así que no puedo decir "
+                "cuál es más antigua o más reciente sin inventarlo."
+            )
+        else:
+            oldest = min(dated, key=lambda work: work.year)
+            newest = max(dated, key=lambda work: work.year)
+            message += (
+                f"\n\nLa más antigua es {oldest.title}: {oldest.year}. "
+                f"La más reciente es {newest.title}: {newest.year}."
+            )
+        return _compare_result(enriched, message)
+
+    if criterion != "length":
+        message += (
+            "\n\nPuedo compararlas por extensión (páginas o minutos) o por año. "
+            "Decime qué criterio te interesa."
+        )
+        return _compare_result(enriched, message)
+
     units = {unit for _work, unit, _value in comparable}
     if not comparable:
         message += (
@@ -1009,10 +1089,14 @@ async def answer_compare(targets: Sequence[Work]) -> Dict[str, Any]:
         if missing:
             message += f" No tengo el dato de extensión de {missing} de las obras."
 
+    return _compare_result(enriched, message)
+
+
+def _compare_result(works: Sequence[Work], message: str) -> Dict[str, Any]:
     return {
         "message": message,
         "recommendations": [],
-        "works": enriched,
+        "works": list(works),
         "spoiler_warning": False,
         "spoilers_revealed": False,
     }
@@ -1140,7 +1224,15 @@ async def handle_turn(
         if titles and isinstance(titles[0], str)
         else list(titles)
     )
-    if action in ("details", "compare", "spoiler") and not targets:
+    if action == "compare":
+        # "¿Cuál es el más antiguo?" names no work: compare the whole batch.
+        if not targets:
+            targets = (
+                list(pool)
+                if len(pool) > 1
+                else (context.last_focus[-1:] or pool[-1:])
+            )
+    elif action in ("details", "spoiler") and not targets:
         targets = context.last_focus[-1:] or pool[-1:]
 
     if action in ("details", "compare", "spoiler") and not targets:
@@ -1214,7 +1306,9 @@ async def handle_turn(
         result["works_for_turn"] = [work.to_dict() for work in answer["works"]]
 
     elif action == "compare":
-        answer = await answer_compare(targets)
+        answer = await answer_compare(
+            targets, criterion=_compare_criterion(message)
+        )
         result.update(answer)
         result["works_for_turn"] = [work.to_dict() for work in answer["works"]]
 
