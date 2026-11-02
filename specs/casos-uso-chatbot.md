@@ -196,7 +196,8 @@ referencia contra `last_batch`/`last_focus` y se responde con datos del catálog
 «¿Cuál de los tres es más corto?» produce `action: compare`. Se comparan solo
 las obras en foco. Si faltan páginas o duración, el mensaje lo dice y no se
 inventa una extensión. Si las métricas son incomparables (páginas vs. minutos),
-también se informa.
+también se informa. Sin un criterio explícito («¿cuál es la mejor?») no se
+declara ganadora: se listan los datos y se pregunta qué comparar.
 
 ### A14 — Pedido de final o spoilers
 
@@ -247,6 +248,7 @@ conocimiento del modelo ni con texto inventado.
 | RN-22 | Sinopsis, autores, páginas, duración y argumentos provienen exclusivamente del catálogo. Si falta el dato, se informa; no se inventa. |
 | RN-23 | La preferencia de spoilers se toma de los mensajes del usuario y se conserva entre turnos. Un aviso del asistente no la modifica. |
 | RN-24 | «Dame otros parecidos al primero» usa los géneros y el creador de esa obra como semilla, no el texto literal del pedido. |
+| RN-25 | Una comparación solo declara una ganadora cuando el usuario pidió un criterio explícito (extensión o año). Sin criterio, se listan los datos y se pregunta cuál comparar. |
 
 ### Tipos de contenido soportados
 
@@ -327,6 +329,7 @@ español e inglés (`misterio`/`mystery`, `ciencia ficción`/`science fiction`,
 | CA-25 | Dos usuarios distintos nunca comparten contexto: una conversación ajena responde `404`. |
 | CA-26 | El prompt de interpretación incluye el historial y las obras ya mostradas; el prompt de recomendación las lista para no repetirlas. |
 | CA-27 | Sin `LLM_API_KEY` los casos anteriores siguen funcionando con el fallback contextual y la respuesta informa la degradación. |
+| CA-28 | «¿Cuál es la mejor?» no declara «la más corta»: pide un criterio. «¿Cuál es el más antiguo?» compara años. |
 
 ## 9. Endpoints reales
 
@@ -633,7 +636,7 @@ Archivo `backend/tests/test_chat_isolation.py` (2 pruebas, base en memoria):
 | `test_chat_recommend_only_own_items` | CA-11 |
 | `test_chat_save_assigns_user_id` | CA-17 |
 
-Archivo `backend/tests/test_chat_contextual.py` (17 pruebas, base en memoria,
+Archivo `backend/tests/test_chat_contextual.py` (19 pruebas, base en memoria,
 catálogo, detalles y LLM simulados):
 
 | Prueba | Criterio |
@@ -642,6 +645,8 @@ catálogo, detalles y LLM simulados):
 | `test_b_explains_second_without_recommending_again` | CA-20, RN-19, RN-21 |
 | `test_c_compares_the_three_and_finds_the_shortest` | CA-21 |
 | `test_c_does_not_invent_length_when_catalogue_has_no_data` | CA-21, RN-22 |
+| `test_c_does_not_pick_a_winner_without_a_criterion` | CA-28, RN-25 |
+| `test_c_compares_by_year_when_asked` | CA-28, RN-25 |
 | `test_d_more_like_the_first_uses_the_seed_work` | CA-22, RN-24 |
 | `test_e_warns_about_spoilers_before_details` | CA-23 |
 | `test_e_respects_sin_spoilers` | CA-23, RN-23 |
@@ -656,7 +661,7 @@ catálogo, detalles y LLM simulados):
 | `test_open_library_description_accepts_list_and_dict_shapes` | RN-22 |
 | `test_recommendation_prompt_lists_already_shown_works` | CA-26, RN-09 |
 
-Resultado de la última ejecución: `126 passed` con `pytest tests -q`, sin bases
+Resultado de la última ejecución: `128 passed` con `pytest tests -q`, sin bases
 de datos residuales.
 
 ## 15. Funcionalidades pendientes
