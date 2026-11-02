@@ -504,6 +504,30 @@ def test_llm_failure_degrades_and_still_answers_with_context(
     assert body["degraded"] is True
 
 
+def test_detail_lookup_prefers_the_work_over_derivative_books():
+    results = [
+        {
+            "title": 'Para leer "El nombre de la rosa" de Umberto Eco',
+            "number_of_pages_median": 196,
+        },
+        {"title": "El Nombre de la Rosa", "number_of_pages_median": None},
+        {"title": "Il nome della rosa", "number_of_pages_median": 533},
+    ]
+
+    match = assistant._best_match("El nombre de la rosa", results)
+
+    assert match is results[1]
+
+
+def test_open_library_description_accepts_list_and_dict_shapes():
+    assert assistant._open_library_description(["First line."]) == "First line."
+    assert (
+        assistant._open_library_description({"type": "/type/text", "value": "Text."})
+        == "Text."
+    )
+    assert assistant._open_library_description([]) is None
+
+
 def test_recommendation_prompt_lists_already_shown_works():
     intent = recommender.parse_request("más libros de misterio")
     profile = recommender.TasteProfile()

@@ -699,6 +699,17 @@ def _first_sentences(text: str, count: int = 2) -> str:
 
 
 def _best_match(title: str, results: Sequence[dict]) -> Optional[dict]:
+    """Pick the catalogue record that actually is the requested work.
+
+    Containment matching is useful for subtitle differences, but it can also
+    select derivative works such as study guides ("Para leer X de ..."). Exact
+    title matches always win.
+    """
+    wanted = recommender.normalize(title)
+    for result in results:
+        if recommended_title := result.get("title"):
+            if recommender.normalize(recommended_title) == wanted:
+                return result
     for result in results:
         if recommender._titles_match(title, result.get("title", "")):
             return result
@@ -727,7 +738,10 @@ async def _book_details(work: Work) -> Work:
     query = f"{work.title} {work.creator or ''}".strip()
     params = {
         "q": query,
-        "fields": "key,title,author_name,first_publish_year,number_of_pages_median,first_sentence,subject",
+        "fields": (
+            "key,title,author_name,first_publish_year,number_of_pages_median,"
+            "first_sentence,description,subject"
+        ),
         "limit": 5,
     }
     async with httpx.AsyncClient(
@@ -746,7 +760,32 @@ async def _book_details(work: Work) -> Work:
                 if pages:
                     work.pages = int(pages)
                 if not work.description:
-                    work.description = _open_library_description(match.get("first_sentence"))
+                    work.description = _open_library_description(
+                        match.get("description")
+                    ) or _open_library_description(match.get("first_sentence"))
+
+                # Editions of the same work carry different metadata. When the
+                # best match is incomplete, retry by title alone and fill the
+                # gaps from another exact-title edition.
+                if not work.description or not work.pages:
+                    extra = await client.get(
+                        OPEN_LIBRARY_SEARCH_URL,
+                        params={**params, "q": work.title},
+                    )
+                    if extra.status_code == 200:
+                        wanted = recommender.normalize(work.title)
+                        for doc in extra.json().get("docs") or []:
+                            if recommender.normalize(doc.get("title", "")) != wanted:
+                                continue
+                            work.description = (
+                                work.description
+                                or _open_library_description(doc.get("description"))
+                            )
+                            if not work.pages and doc.get("number_of_pages_median"):
+                                work.pages = int(doc["number_of_pages_median"])
+                            if work.description and work.pages:
+                                break
+
                 key = match.get("key")
                 if not work.description and key:
                     detailed = await client.get(OPEN_LIBRARY_WORK_URL.format(key=key))
