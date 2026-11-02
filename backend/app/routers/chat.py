@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
@@ -15,12 +15,9 @@ from app.schemas import (
     ConversationTurn,
     Recommendation,
 )
-from app.services import recommender
+from app.services import assistant
 
 router = APIRouter(prefix="/chat", tags=["chat"])
-
-# How many previous turns are sent to the model as context.
-MAX_HISTORY_TURNS = 6
 
 
 def _owned_conversation(db: Session, user: User, conversation_id: int) -> ChatConversation:
@@ -37,26 +34,6 @@ def _owned_conversation(db: Session, user: User, conversation_id: int) -> ChatCo
         # one user cannot probe another user's history.
         raise HTTPException(status_code=404, detail="Conversación no encontrada")
     return conversation
-
-
-def _history(conversation: ChatConversation) -> List[Dict[str, str]]:
-    turns = conversation.turns[-MAX_HISTORY_TURNS:]
-    return [{"role": turn.role, "content": turn.content} for turn in turns]
-
-
-def _recommended_titles(conversation: ChatConversation) -> set:
-    titles = set()
-    for turn in conversation.turns:
-        if not turn.recommendations:
-            continue
-        try:
-            payload = json.loads(turn.recommendations)
-        except (TypeError, ValueError):
-            continue
-        for item in payload or []:
-            if isinstance(item, dict) and item.get("title"):
-                titles.add(recommender.normalize(item["title"]))
-    return titles
 
 
 def _summary(conversation: ChatConversation) -> ConversationSummary:
@@ -78,18 +55,19 @@ async def recommend(
     if payload.conversation_id is not None:
         conversation = _owned_conversation(db, user, payload.conversation_id)
 
-    history = _history(conversation) if conversation else []
-    already_suggested = _recommended_titles(conversation) if conversation else set()
+    # Rebuild the state from the persisted turns, including the works shown in
+    # previous answers. This is what lets "el segundo" or "ese libro" resolve.
+    context = assistant.build_context(conversation.turns if conversation else [])
 
-    result = await recommender.recommend(
+    result = await assistant.handle_turn(
         db,
         user,
         payload.message,
+        context,
+        conversation_exists=conversation is not None,
         forced_type=payload.type,
         limit=payload.limit,
         exclude_consumed=payload.exclude_consumed,
-        exclude_titles=already_suggested,
-        history=history,
     )
 
     result["recommendations"] = result["recommendations"][: payload.limit]
@@ -109,7 +87,13 @@ async def recommend(
                 conversation_id=conversation.id,
                 role="assistant",
                 content=result["message"],
-                recommendations=json.dumps(result["recommendations"], ensure_ascii=False),
+                recommendations=json.dumps(
+                    {
+                        "kind": result["action"],
+                        "works": result.get("works_for_turn", []),
+                    },
+                    ensure_ascii=False,
+                ),
             )
         )
         db.commit()
@@ -154,10 +138,7 @@ def get_conversation(
     conversation = _owned_conversation(db, user, conversation_id)
     turns = []
     for turn in conversation.turns:
-        try:
-            payload = json.loads(turn.recommendations) if turn.recommendations else []
-        except (TypeError, ValueError):
-            payload = []
+        _kind, payload = assistant.parse_stored_recommendations(turn.recommendations)
         turns.append(
             ConversationTurn(
                 id=turn.id,
