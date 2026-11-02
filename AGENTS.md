@@ -54,7 +54,7 @@ Relación obligatoria entre CU, especificaciones, implementación y pruebas.
 | CU07 | Comentar publicaciones | Implementado (verificable) | `specs/SPEC-05-comentarios.md` (falta) | `backend/app/models/comment.py`, `backend/app/routers/comments.py`, `frontend/src/pages/ItemDetail.jsx` | Pendiente de documentar |
 | CU08 | Dar me gusta a publicaciones | Pendiente (sin evidencia) | `specs/SPEC-06-likes.md` (falta) | Sin modelo/router/frontend verificable | Pendiente de documentar |
 | CU09 | Puntuar y reseñar contenido | Implementado (verificable) | `specs/SPEC-05-comentarios.md` (falta) | Comentarios con `rating` en `backend/app/models/comment.py`, UI en `frontend/src/pages/ItemDetail.jsx` | Pendiente de documentar |
-| CU10 | Consultar al asistente inteligente | Implementado (verificable) | `specs/casos-uso-chatbot.md` (existe parcial) | `backend/app/routers/chat.py`, `frontend/src/pages/Chatbot.jsx`, `frontend/src/App.jsx` | Pendiente de documentar |
+| CU10 | Consultar al asistente inteligente | Implementado (verificable) | `specs/casos-uso-chatbot.md` (completa) | `backend/app/routers/chat.py`, `backend/app/services/assistant.py`, `backend/app/services/recommender.py`, `frontend/src/pages/Chatbot.jsx`, `frontend/src/App.jsx` | `backend/tests/test_chat_recommend.py`, `backend/tests/test_chat_contextual.py`, `backend/tests/test_chat_isolation.py` |
 
 **Regla:** Solo marcar como "Implementado" con evidencia directa en código. "Parcialmente implementado" o "Pendiente" si falta funcionalidad crítica.
 
