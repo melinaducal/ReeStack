@@ -34,13 +34,16 @@ falla, el asistente responde igual con un motor heurístico y búsqueda real.
 - Explicación del motivo de cada recomendación.
 - Exclusión de contenido ya consumido y de títulos ya sugeridos en la misma
   conversación.
+- Conversaciones de varios turnos: el asistente recuerda las obras mostradas,
+  resuelve referencias («el segundo», «ese libro»), compara, amplía, refina y
+  responde detalles con datos de catálogo.
+- Preferencia de spoilers explícita por conversación.
 - Persistencia de conversaciones por usuario con aislamiento estricto.
 - Funcionamiento degradado sin claves de API.
 - Endpoints REST con autenticación JWT.
 
 ### Fuera de alcance de esta versión
 
-- Interfaz de conversaciones en el frontend (ver sección 12).
 - Memoria entre conversaciones distintas.
 - RAG sobre reseñas o documentos.
 - Edición o renombrado de conversaciones.
@@ -51,8 +54,8 @@ falla, el asistente responde igual con un motor heurístico y búsqueda real.
 | Actor | Descripción |
 |---|---|
 | Usuario autenticado | Persona con JWT válido que pide recomendaciones y gestiona sus conversaciones. |
-| Sistema (backend) | Interpreta el pedido, construye el perfil, consulta catálogos, verifica y puntúa candidatos. |
-| LLM externo (opcional) | Propone títulos candidatos. Nunca es fuente de verdad: sus propuestas se verifican. |
+| Sistema (backend) | Interpreta el pedido y el contexto, construye el perfil, consulta catálogos, verifica y puntúa candidatos. |
+| LLM externo (opcional) | Interpreta la intención del turno y propone títulos candidatos. Nunca es fuente de verdad: sus propuestas se verifican. |
 | Catálogos externos | Open Library, Google Books, TMDB, TVMaze, Wikipedia, iTunes, MusicBrainz y Crossref. |
 
 ## 4. Precondiciones
@@ -70,24 +73,42 @@ falla, el asistente responde igual con un motor heurístico y búsqueda real.
 2. El backend valida el JWT y obtiene el usuario actual.
 3. Si viene `conversation_id`, verifica que la conversación pertenezca al
    usuario. Si no pertenece o no existe, responde `404`.
-4. El motor interpreta el pedido: detecta tipos de contenido, géneros,
-   restricciones (`final feliz`, `corto`, `reciente`, `clásico`) y obra de
-   referencia (`parecido a X`).
-5. El motor construye el perfil de gustos del usuario con sus items y
+4. Reconstruye el contexto conversacional desde los turnos persistidos: obras
+   recomendadas o consultadas, última tanda de recomendaciones (`last_batch`),
+   última obra en foco (`last_focus`) y preferencia de spoilers declarada por el
+   usuario. El contexto no vive en memoria: se recalcula en cada pedido.
+5. Interpreta la intención del turno. Con `LLM_API_KEY`, el LLM recibe el
+   historial, las obras disponibles y la preferencia de spoilers, y devuelve
+   `action`, `targets`, `spoilers`, `query` y `reply`. Sin clave o ante fallo,
+   un fallback contextual determinista usa el mismo estado persistido.
+6. Según `action`:
+   - `recommend`: busca recomendaciones nuevas (flujo de los pasos 7 a 11).
+   - `details`: responde sobre una obra ya mostrada con datos de catálogo y no
+     ejecuta una búsqueda de recomendaciones.
+   - `compare`: compara las obras en foco (extensión, año, sinopsis) solo con
+     datos disponibles.
+   - `more`: busca opciones parecidas a una obra anterior, usando sus géneros y
+     creador como semilla y excluyendo lo ya mostrado.
+   - `refine`: vuelve a recomendar aplicando la preferencia nueva del usuario.
+   - `spoiler`: advierte sobre spoilers antes de mostrar detalles.
+   - `chat`: conversa o confirma un cambio de preferencia sin buscar obras.
+7. El motor construye el perfil de gustos del usuario con sus items y
    comentarios.
-6. Si hay `LLM_API_KEY`, el LLM propone títulos. Cada propuesta se busca en el
+8. Si hay `LLM_API_KEY`, el LLM propone títulos. Cada propuesta se busca en el
    catálogo y solo se conserva si el título coincide con un resultado real.
-7. Si no hay propuestas verificadas, el motor busca directamente en los
+9. Si no hay propuestas verificadas, el motor busca directamente en los
    catálogos según el pedido y el perfil.
-8. Se descartan los títulos ya consumidos (si `exclude_consumed` es `true`) y
-   los ya sugeridos en esa conversación.
-9. Los candidatos se puntúan y se ordenan; se devuelven hasta `limit`.
-10. Cada recomendación incluye un motivo generado a partir de géneros
+10. Se descartan los títulos ya consumidos (si `exclude_consumed` es `true`) y
+    los ya sugeridos en esa conversación.
+11. Los candidatos se puntúan y se ordenan; se devuelven hasta `limit`.
+12. Cada recomendación incluye un motivo generado a partir de géneros
     coincidentes, afinidad con autores o creadores y restricciones del pedido.
-11. Si hay `conversation_id`, se guardan dos turnos (`user` y `assistant`) con
-    un snapshot JSON de las recomendaciones y se devuelve `conversation_id`.
-12. La respuesta incluye `engine`, `degraded`, `warnings` e `intent` para que el
-    cliente pueda informar el modo de funcionamiento.
+13. Si hay `conversation_id`, se guardan dos turnos (`user` y `assistant`). El
+    turno del asistente guarda `{"kind": "<action>", "works": [...]}` con las
+    obras mostradas o consultadas, y se devuelve `conversation_id`.
+14. La respuesta incluye `engine`, `degraded`, `warnings`, `intent`, `action`,
+    `context`, `spoiler_warning` y `spoilers_revealed` para que el cliente pueda
+    informar el modo de funcionamiento sin romper el contrato anterior.
 
 ## 6. Flujos alternativos
 
@@ -163,6 +184,41 @@ o `conversation_id` no entero producen `422` por validación de Pydantic.
 Si el usuario ya tiene un item con ese título exacto, se responde `400` con
 `Ya existe en tu biblioteca`.
 
+### A12 — Pregunta sobre una obra ya mostrada
+
+Si el mensaje pide detalles de una obra de la conversación («¿De qué trata el
+segundo?», «¿quién escribió ese libro?»), `action` es `details`, se resuelve la
+referencia contra `last_batch`/`last_focus` y se responde con datos del catálogo.
+`recommendations` queda vacío y **no** se llama a la búsqueda de recomendaciones.
+
+### A13 — Comparación de obras anteriores
+
+«¿Cuál de los tres es más corto?» produce `action: compare`. Se comparan solo
+las obras en foco. Si faltan páginas o duración, el mensaje lo dice y no se
+inventa una extensión. Si las métricas son incomparables (páginas vs. minutos),
+también se informa.
+
+### A14 — Pedido de final o spoilers
+
+Si el mensaje pide el final («Explicame el final», «contame el desenlace»), el
+turno se clasifica como `spoiler`. La respuesta empieza con un aviso explícito y
+`spoiler_warning: true`. Con `sin spoilers` en el mismo mensaje o como
+preferencia previa, se recorta la sinopsis y `spoilers_allowed` queda en
+`false`. El catálogo no contiene finales: el asistente nunca los inventa.
+
+### A15 — LLM intérprete no disponible o respuesta inválida
+
+Si falta `LLM_API_KEY`, hay timeout, error de red o JSON inválido, se usa el
+fallback contextual y se agrega la advertencia correspondiente
+(`llm_key_missing`, `llm_timeout`, `llm_unavailable`, `llm_invalid_response`,
+etc.). La respuesta sigue siendo `200` y mantiene el contexto conversacional.
+
+### A16 — Detalle sin datos en el catálogo
+
+Si al consultar una obra el catálogo no devuelve sinopsis, autor, páginas o
+duración, el mensaje lo declara explícitamente. No se completan datos con
+conocimiento del modelo ni con texto inventado.
+
 ## 7. Reglas de negocio
 
 | ID | Regla |
@@ -176,13 +232,21 @@ Si el usuario ya tiene un item con ese título exacto, se responde `400` con
 | RN-07 | Una puntuación alta refuerza el tipo, el género y el creador. Un comentario con puntuación menor a 2.5 aporta peso negativo al género. |
 | RN-08 | Con `exclude_consumed: true`, no se recomiendan títulos presentes en la biblioteca ni en los comentarios del usuario. |
 | RN-09 | Dentro de una misma conversación no se repite un título ya recomendado en turnos anteriores. |
-| RN-10 | El historial enviado al LLM se limita a los últimos 6 turnos (`MAX_HISTORY_TURNS`). |
+| RN-10 | El historial del recomendador se limita a los últimos 6 turnos; el intérprete contextual usa hasta 12 y resume las obras de cada turno. |
 | RN-11 | El título de una conversación se autogenera con los primeros 80 caracteres del primer mensaje si no se especificó. |
 | RN-12 | Las conversaciones se listan de la más reciente a la más antigua. |
 | RN-13 | Eliminar una conversación elimina sus turnos por cascada. |
 | RN-14 | La caché de catálogo dura 300 segundos y se comparte entre `/catalog/search` y el recomendador. |
 | RN-15 | El límite de resultados por proveedor es 50; la respuesta final se recorta a `limit` (1 a 6). |
 | RN-16 | Los textos de motivos y mensajes se generan en español. |
+| RN-17 | El contexto conversacional se reconstruye desde los turnos persistidos; no se guarda en memoria del proceso. |
+| RN-18 | El LLM es el intérprete primario de la intención. Sin clave o ante error, un fallback contextual usa el mismo estado y no respuestas fijas por palabra aislada. |
+| RN-19 | Los ordinales («el primero», «la segunda») y «el último» se resuelven contra la última tanda de recomendaciones, no contra el acumulado histórico. |
+| RN-20 | «Ese libro», «esa película» y similares se resuelven contra la última obra en foco, filtrando por tipo cuando el mensaje lo nombra. |
+| RN-21 | Una consulta de detalles o comparación nunca dispara una búsqueda nueva de recomendaciones. |
+| RN-22 | Sinopsis, autores, páginas, duración y argumentos provienen exclusivamente del catálogo. Si falta el dato, se informa; no se inventa. |
+| RN-23 | La preferencia de spoilers se toma de los mensajes del usuario y se conserva entre turnos. Un aviso del asistente no la modifica. |
+| RN-24 | «Dame otros parecidos al primero» usa los géneros y el creador de esa obra como semilla, no el texto literal del pedido. |
 
 ### Tipos de contenido soportados
 
@@ -255,6 +319,14 @@ español e inglés (`misterio`/`mystery`, `ciencia ficción`/`science fiction`,
 | CA-17 | `POST /chat/save` asigna el item al usuario autenticado. |
 | CA-18 | Un pedido de película por género sin clave usa el respaldo de Wikipedia y devuelve resultados con `source: wikipedia`. |
 | CA-19 | Los errores de proveedor se informan en `warnings` sin romper la respuesta. |
+| CA-20 | «¿De qué trata el segundo?» responde sobre la segunda obra de la última tanda, con `action: details`, `recommendations: []` y sin una nueva búsqueda. |
+| CA-21 | «¿Cuál de los tres es más corto?» compara las tres obras y no inventa páginas ni duración faltantes. |
+| CA-22 | «Dame otros parecidos al primero» devuelve obras nuevas relacionadas con la primera y no repite las ya mostradas. |
+| CA-23 | «Explicame el final» devuelve `spoiler_warning: true` y un aviso antes del contenido; «sin spoilers» impide revelar detalles. |
+| CA-24 | Cerrar y reabrir una conversación conserva sus obras y permite seguir preguntando por ordinales. |
+| CA-25 | Dos usuarios distintos nunca comparten contexto: una conversación ajena responde `404`. |
+| CA-26 | El prompt de interpretación incluye el historial y las obras ya mostradas; el prompt de recomendación las lista para no repetirlas. |
+| CA-27 | Sin `LLM_API_KEY` los casos anteriores siguen funcionando con el fallback contextual y la respuesta informa la degradación. |
 
 ## 9. Endpoints reales
 
@@ -324,19 +396,27 @@ Response `200`:
       "classic": false
     },
     "similar_to": null
-  }
+  },
+  "action": "recommend",
+  "context": { "works": [], "available": [] },
+  "spoiler_warning": false,
+  "spoilers_revealed": false
 }
 ```
 
 | Campo de respuesta | Descripción |
 |---|---|
-| `message` | Resumen en español de lo encontrado. |
-| `recommendations` | Hasta `limit` obras verificadas. |
+| `message` | Resumen en español de lo encontrado o respuesta a la consulta. |
+| `recommendations` | Hasta `limit` obras verificadas. Vacío en `details`, `compare` y `chat`. |
 | `engine` | `llm` si hubo propuestas verificadas del modelo; `heuristic` en caso contrario. |
 | `degraded` | `true` si alguna advertencia empieza con `llm_`. |
 | `warnings` | Códigos de error o degradación, sin datos sensibles. |
 | `conversation_id` | Presente solo si se continuó una conversación. |
-| `intent` | Interpretación del pedido: tipos, géneros, restricciones y obra de referencia. |
+| `intent` | Interpretación del pedido: tipos, géneros, restricciones, obra de referencia, `action`, `targets` y `spoilers_allowed`. |
+| `action` | `recommend`, `details`, `compare`, `more`, `refine`, `spoiler` o `chat`. |
+| `context` | `works` en foco y `available` obras de la conversación. |
+| `spoiler_warning` | `true` si la respuesta incluye aviso de spoilers. |
+| `spoilers_revealed` | `true` solo si se muestra contenido con posibles spoilers y el usuario lo autorizó. |
 
 Campos de cada recomendación: `title`, `type`, `creator`, `reason`,
 `in_library`, `year`, `cover_url`, `external_id`, `source`, `matched_genres`.
@@ -459,7 +539,12 @@ un item con ese título exacto.
   ejecutan `ALTER TABLE` ni se elimina información existente.
 - Cada llamada a `/chat/recommend` con `conversation_id` agrega exactamente dos
   turnos: el pedido del usuario y la respuesta del asistente.
-- El turno `assistant` guarda un snapshot JSON de las recomendaciones devueltas.
+- El turno `assistant` guarda un snapshot JSON con la forma
+  `{"kind": "<action>", "works": [...]}`. `works` contiene las obras mostradas o
+  consultadas en ese turno; en un turno de detalles conserva la obra consultada,
+  de modo que las recomendaciones anteriores no se pierden.
+- Los turnos creados antes de este formato guardaban una lista plana. Ambos
+  formatos se leen de forma compatible y `GET` siempre devuelve una lista.
 - La relación `ChatConversation.turns` usa `cascade="all, delete-orphan"` y
   orden por `id`.
 - La conversación no guarda el perfil de gustos: se recalcula en cada pedido,
@@ -548,7 +633,28 @@ Archivo `backend/tests/test_chat_isolation.py` (2 pruebas, base en memoria):
 | `test_chat_recommend_only_own_items` | CA-11 |
 | `test_chat_save_assigns_user_id` | CA-17 |
 
-Resultado de la última ejecución: `109 passed` con `pytest tests -q`, sin bases
+Archivo `backend/tests/test_chat_contextual.py` (15 pruebas, base en memoria,
+catálogo, detalles y LLM simulados):
+
+| Prueba | Criterio |
+|---|---|
+| `test_a_recommends_three_mystery_books` | CA-20 |
+| `test_b_explains_second_without_recommending_again` | CA-20, RN-19, RN-21 |
+| `test_c_compares_the_three_and_finds_the_shortest` | CA-21 |
+| `test_c_does_not_invent_length_when_catalogue_has_no_data` | CA-21, RN-22 |
+| `test_d_more_like_the_first_uses_the_seed_work` | CA-22, RN-24 |
+| `test_e_warns_about_spoilers_before_details` | CA-23 |
+| `test_e_respects_sin_spoilers` | CA-23, RN-23 |
+| `test_e_preference_only_acknowledges_without_searching` | RN-23 |
+| `test_f_context_survives_closing_and_reopening` | CA-24, RN-17 |
+| `test_g_users_never_share_conversation_context` | CA-25 |
+| `test_interpret_prompt_includes_history_and_previous_works` | CA-26 |
+| `test_llm_interpretation_resolves_the_second_work` | CA-20, RN-18 |
+| `test_llm_chat_answer_without_new_recommendations` | RN-18, CA-26 |
+| `test_llm_failure_degrades_and_still_answers_with_context` | CA-27 |
+| `test_recommendation_prompt_lists_already_shown_works` | CA-26, RN-09 |
+
+Resultado de la última ejecución: `123 passed` con `pytest tests -q`, sin bases
 de datos residuales.
 
 ## 15. Funcionalidades pendientes
@@ -556,9 +662,6 @@ de datos residuales.
 Estas capacidades **no** están implementadas y no deben considerarse cubiertas
 por esta spec:
 
-- **Interfaz de conversaciones en el frontend.** `frontend/src/pages/Chatbot.jsx`
-  llama a `/chat/recommend` y `/chat/save`, pero no envía `conversation_id` ni
-  lista conversaciones. El backend ya lo soporta.
 - **Renombrar o editar conversaciones.** No existe `PATCH`/`PUT` sobre
   `/chat/conversations/{id}`.
 - **Paginación o búsqueda en el listado de conversaciones.** `GET
@@ -568,8 +671,11 @@ por esta spec:
   de la biblioteca y los comentarios existentes.
 - **Respaldo sin clave para música y papers.** Wikipedia solo cubre películas y
   series; música depende de iTunes/MusicBrainz y papers de Crossref.
-- **Verificación contra un LLM real.** El camino `engine: llm` se probó con LLM
-  y catálogo simulados; en este entorno no hay `LLM_API_KEY`.
+- **Verificación contra un LLM real.** Tanto la propuesta de títulos como el
+  intérprete conversacional se prueban con LLM simulado; en este entorno no hay
+  `LLM_API_KEY` ni claves de catálogo. La prueba real requiere configurar
+  `LLM_API_KEY` y ejecutar una conversación manual de varios turnos contra el
+  proveedor.
 - **Puntuaciones coherentes en el frontend.** El frontend usa escala 0–10 con
   `parseInt`, mientras el backend acepta 1–5 con fracciones; esto degrada la
   calidad del perfil de gustos.
@@ -582,10 +688,13 @@ por esta spec:
 ## 16. Referencias
 
 - `backend/app/routers/chat.py` — endpoints y persistencia de turnos.
+- `backend/app/services/assistant.py` — contexto conversacional, intención,
+  referencias, detalles, comparación y spoilers.
 - `backend/app/services/recommender.py` — interpretación, perfil, verificación y puntuación.
 - `backend/app/models/chat.py` — tablas de conversación.
 - `backend/app/schemas/chat.py` — contratos de entrada y salida.
 - `backend/app/routers/catalog.py` — proveedores y caché.
 - `backend/.env.example` — variables de entorno documentadas.
 - `backend/tests/test_chat_recommend.py` — pruebas del motor.
+- `backend/tests/test_chat_contextual.py` — pruebas de conversaciones de varios turnos.
 - `backend/tests/test_chat_isolation.py` — pruebas de aislamiento.
