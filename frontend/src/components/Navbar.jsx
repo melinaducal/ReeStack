@@ -27,13 +27,16 @@ function Navbar() {
                 <Link to="/stack" className="navbar-link">Mi Stack</Link>
               </li>
               <li className="navbar-item">
-                <Link to="/users" className="navbar-link">Explorar usuarios</Link>
+                <Link to="/users" className="navbar-link">Buscar usuarios</Link>
               </li>
               <li className="navbar-item">
-                <Link to="/chatbot" className="navbar-link">Recomendador</Link>
+                <Link to="/chatbot" className="navbar-link">ReeIA</Link>
               </li>
               <li className="navbar-item">
-                <Link to="/book-search" className="navbar-link">Buscar libros</Link>
+                <Link to="/book-search" className="navbar-link">Buscar</Link>
+              </li>
+              <li className="navbar-item">
+                <Link to="/create-post" className="navbar-link">Publicar</Link>
               </li>
               <li className="navbar-item">
                 <Link to="/add" className="navbar-link">Agregar</Link>

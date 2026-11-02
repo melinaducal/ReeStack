@@ -17,6 +17,8 @@ function BookSearch() {
   const [loading, setLoading] = useState(false)
   const [userItems, setUserItems] = useState([])
   const [adding, setAdding] = useState({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [mode, setMode] = useState('genre')
 
   useEffect(() => {
     fetchUserItems()
@@ -45,22 +47,33 @@ function BookSearch() {
   }
 
   const handleNext = async () => {
-    if (selectedGenres.length === 0) return
     setLoading(true)
     setStep(2)
     try {
-      const response = await api.get('/books/search', {
-        params: {
-          genres: selectedGenres.join(','),
-          mode: 'or'
-        }
-      })
-      setBooks(response.data.results || [])
+      if (mode === 'search' && searchQuery.trim()) {
+        const response = await api.get('/books/search', {
+          params: {
+            q: searchQuery.trim()
+          }
+        })
+        setBooks(response.data.results || [])
+      } else if (selectedGenres.length > 0) {
+        const response = await api.get('/books/search', {
+          params: {
+            genres: selectedGenres.join(','),
+            mode: 'or'
+          }
+        })
+        setBooks(response.data.results || [])
+      } else {
+        setBooks([])
+      }
     } catch (error) {
       console.error('Error fetching books:', error)
       setBooks([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const addBook = async (book) => {
@@ -95,27 +108,46 @@ function BookSearch() {
       {step === 1 && (
         <div className="genre-step">
           <header className="search-header">
-            <h1>Buscar libros por género</h1>
-            <p className="search-subtitle">Selecciona uno o varios géneros para encontrar libros</p>
+            <h1>Buscar libros</h1>
+            <p className="search-subtitle">Buscá por nombre o seleccioná géneros</p>
           </header>
-          <div className="genres-grid">
-            {genres.map(genre => (
-              <button
-                key={genre}
-                onClick={() => toggleGenre(genre)}
-                className={`genre-button ${selectedGenres.includes(genre) ? 'selected' : ''}`}
-              >
-                {genre}
-              </button>
-            ))}
+          <div className="search-mode">
+            <button onClick={() => setMode('search')} className={mode === 'search' ? 'active' : ''}>Buscar por nombre</button>
+            <button onClick={() => setMode('genre')} className={mode === 'genre' ? 'active' : ''}>Buscar por género</button>
           </div>
-          <button 
-            onClick={handleNext} 
-            className="next-button"
-            disabled={selectedGenres.length === 0}
-          >
-            Siguiente
-          </button>
+          {mode === 'search' && (
+            <div className="search-bar">
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Título, autor o palabra clave"
+                onKeyDown={(e) => e.key === 'Enter' && handleNext()}
+              />
+              <button onClick={handleNext} disabled={!searchQuery.trim()}>Buscar</button>
+            </div>
+          )}
+          {mode === 'genre' && (
+            <>
+              <div className="genres-grid">
+                {genres.map(genre => (
+                  <button
+                    key={genre}
+                    onClick={() => toggleGenre(genre)}
+                    className={`genre-button ${selectedGenres.includes(genre) ? 'selected' : ''}`}
+                  >
+                    {genre}
+                  </button>
+                ))}
+              </div>
+              <button 
+                onClick={handleNext} 
+                className="next-button"
+                disabled={selectedGenres.length === 0}
+              >
+                Siguiente
+              </button>
+            </>
+          )}
         </div>
       )}
 

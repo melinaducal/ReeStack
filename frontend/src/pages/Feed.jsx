@@ -17,10 +17,9 @@ function Feed() {
     try {
       setLoading(true)
       const response = await api.get('/items/feed')
-      setPosts(response.data)
-      // Initialize like states for each post
+      setPosts(response.data || [])
       const states = {}
-      for (const post of response.data) {
+      for (const post of response.data || []) {
         try {
           const likeRes = await api.get(`/likes/item/${post.id}`)
           states[post.id] = likeRes.data
@@ -58,92 +57,155 @@ function Feed() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
-  return (
-    <div className="feed-layout">
-      <main className="feed-main">
-        <header className="feed-header">
-          <h1>Feed</h1>
-          <p className="feed-subtitle">Pensamientos y reseñas de la comunidad</p>
-        </header>
-        {loading && <p>Cargando feed...</p>}
-        {error && <p className="error">{error}</p>}
-        {!loading && !error && posts.length === 0 && (
-          <p className="empty-message">Aún no hay publicaciones en la comunidad.</p>
-        )}
-        <div className="posts-list">
-          {posts.map(post => (
-            <article key={post.id} className="post-card">
-              <div className="post-header">
-                <div className="post-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#C98F86', color: '#F5EBDD', fontWeight: 'bold' }}>
-                  {getInitials(post.owner?.username || post.username || 'Usuario')}
-                </div>
-                <div className="post-meta">
-                  <p className="post-author">{post.owner?.username || post.username || (post.user_id ? `Usuario ${post.user_id}` : 'Usuario')}</p>
-                  <p className="post-date">{post.type}</p>
-                </div>
-              </div>
-              <div className="post-related">
-                {(post.cover_url || post.type === 'book') && (
-                  <img 
-                    src={post.cover_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=80&h=120&fit=crop'} 
-                    alt={post.title} 
-                    className="post-cover" 
-                  />
-                )}
-                <p className="post-related-text">
-                  Relacionado con: <Link to={`/item/${post.id}`} className="post-related-title">{post.title}</Link>
-                  {post.creator && <span> · {post.creator}</span>}
-                  {post.year && <span> · {post.year}</span>}
-                </p>
-              </div>
-              {post.thoughts && (
-                <div className="post-content">
-                  <p>{post.thoughts}</p>
-                </div>
-              )}
-              <div className="post-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
-                <button 
-                  onClick={() => handleLike(post.id)} 
-                  className="like-btn"
-                  style={{ 
-                    background: likeStates[post.id]?.liked ? '#C98F86' : 'transparent',
-                    color: likeStates[post.id]?.liked ? '#F5EBDD' : '#C98F86',
-                    border: '1px solid #C98F86',
-                    padding: '0.3rem 0.8rem',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  {likeStates[post.id]?.liked ? '♥ Me gusta' : '♡ Me gusta'}
-                </button>
-                <span className="likes-count">{likeStates[post.id]?.likes_count || 0} {likeStates[post.id]?.likes_count === 1 ? 'me gusta' : 'me gusta'}</span>
-                <Link to={`/item/${post.id}`} style={{ marginLeft: 'auto', color: '#C98F86', textDecoration: 'none' }}>Ver detalle / Comentar</Link>
-              </div>
-            </article>
-          ))}
-        </div>
-      </main>
+  const formatDate = (post) => {
+    if (post.created_at) {
+      try {
+        const d = new Date(post.created_at)
+        return d.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
+      } catch (e) {}
+    }
+    return ''
+  }
 
-      <aside className="feed-sidebar">
-        <section className="sidebar-section sidebar-stack">
-          <Link to="/stack" className="stack-link">
-            <h2 className="sidebar-title">Mi Stack</h2>
-            <p className="stack-description">Ver toda mi colección</p>
-          </Link>
-        </section>
-        <section className="sidebar-section sidebar-stack">
-          <Link to="/add" className="stack-link">
-            <h2 className="sidebar-title">Agregar contenido</h2>
-            <p className="stack-description">Añadir a mi biblioteca</p>
-          </Link>
-        </section>
-        <section className="sidebar-section sidebar-stack">
-          <Link to="/chatbot" className="stack-link">
-            <h2 className="sidebar-title">Asistente IA</h2>
-            <p className="stack-description">Recomendaciones personalizadas</p>
-          </Link>
-        </section>
-      </aside>
+  const getUserName = (post) => {
+    return post.owner?.username || post.owner?.first_name || post.username || (post.user_id ? `Usuario ${post.user_id}` : 'Usuario')
+  }
+
+  return (
+    <div className="feed-shell">
+      <header className="feed-hero">
+        <div className="feed-hero-inner">
+          <p className="feed-kicker">Comunidad cultural</p>
+          <h1 className="feed-hero-title">Descubre, reseña y comparte</h1>
+          <p className="feed-hero-subtitle">Un espacio editorial para libros, películas, series, música y papers.</p>
+        </div>
+      </header>
+      <div className="feed-layout">
+        <main className="feed-main">
+          <div className="feed-section-header">
+            <h2>Publicaciones recientes</h2>
+            <p>Lo que la comunidad está leyendo y pensando</p>
+          </div>
+          {loading && <p className="feed-state">Cargando feed...</p>}
+          {error && <p className="feed-state feed-error">{error}</p>}
+          {!loading && !error && posts.length === 0 && (
+            <p className="feed-state">Aún no hay publicaciones en la comunidad.</p>
+          )}
+          <div className="posts-list">
+            {posts.map(post => (
+              <article key={post.id} className="post-card">
+                <div className="post-card-header">
+                  <div className="post-user">
+                    <div className="post-avatar">
+                      {getInitials(getUserName(post))}
+                    </div>
+                    <div className="post-user-meta">
+                      <p className="post-user-name">{getUserName(post)}</p>
+                      <p className="post-timestamp">{formatDate(post)} {post.type ? `· ${post.type}` : ''}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="post-body">
+                  <div className="post-media">
+                    {post.cover_url ? (
+                      <img src={post.cover_url} alt={post.title} className="post-cover-large" />
+                    ) : (
+                      <div className="post-cover-placeholder">
+                        <span>{post.type?.[0]?.toUpperCase() || 'R'}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="post-details">
+                    <div className="post-work">
+                      <Link to={`/item/${post.id}`} className="post-work-title">{post.title}</Link>
+                      {(post.creator || post.year) && (
+                        <p className="post-work-meta">
+                          {post.creator}{post.creator && post.year ? ' · ' : ''}{post.year}
+                        </p>
+                      )}
+                      {post.rating && (
+                        <div className="post-rating">
+                          <span className="post-rating-stars">★</span>
+                          <span>{post.rating}/10</span>
+                        </div>
+                      )}
+                    </div>
+                    {post.thoughts && (
+                      <div className="post-review">
+                        {(() => {
+                          const text = post.thoughts || ''
+                          if (text.trim().startsWith('<')) {
+                            return <div dangerouslySetInnerHTML={{ __html: text }} />
+                          }
+                          const formatText = (t) => {
+                            let result = t
+                            result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="post-link">$1</a>')
+                            result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                            result = result.replace(/__([^_]+)__/g, '<u>$1</u>')
+                            result = result.replace(/~~([^~]+)~~/g, '<s>$1</s>')
+                            result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                            result = result.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="post-link">Ver enlace</a>')
+                            return result
+                          }
+                          return <div dangerouslySetInnerHTML={{ __html: formatText(text).replace(/\n/g, '<br/>') }} />
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="post-card-footer">
+                  <div className="post-actions">
+                    <button 
+                      onClick={() => handleLike(post.id)} 
+                      className={`post-action-btn ${likeStates[post.id]?.liked ? 'liked' : ''}`}
+                      aria-label="Me gusta"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                      <span>{likeStates[post.id]?.likes_count || 0}</span>
+                    </button>
+                    <Link to={`/item/${post.id}`} className="post-action-btn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                      </svg>
+                      <span>Comentar</span>
+                    </Link>
+                  </div>
+                  <Link to={`/item/${post.id}`} className="post-detail-link">Ver publicación</Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        </main>
+        <aside className="feed-sidebar">
+          <section className="sidebar-card">
+            <h3 className="sidebar-card-title">Explorar</h3>
+            <nav className="sidebar-nav">
+              <Link to="/stack" className="sidebar-nav-item">
+                <span>Mi Stack</span>
+                <span className="sidebar-nav-arrow">→</span>
+              </Link>
+              <Link to="/add" className="sidebar-nav-item">
+                <span>Agregar contenido</span>
+                <span className="sidebar-nav-arrow">→</span>
+              </Link>
+              <Link to="/book-search" className="sidebar-nav-item">
+                <span>Buscar por género</span>
+                <span className="sidebar-nav-arrow">→</span>
+              </Link>
+              <Link to="/chatbot" className="sidebar-nav-item">
+                <span>Asistente IA</span>
+                <span className="sidebar-nav-arrow">→</span>
+              </Link>
+            </nav>
+          </section>
+          <section className="sidebar-card sidebar-card-subtle">
+            <h3 className="sidebar-card-title">Sobre ReeStack</h3>
+            <p className="sidebar-card-text">Una red social cultural para registrar, compartir y descubrir libros, películas, series, música y papers.</p>
+          </section>
+        </aside>
+      </div>
     </div>
   )
 }

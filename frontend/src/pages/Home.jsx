@@ -21,6 +21,28 @@ function Home() {
     }
   }
 
+  const getTypeLabel = (type) => {
+    const labels = {
+      book: 'Libro',
+      movie: 'Película',
+      series: 'Serie',
+      music: 'Música',
+      paper: 'Paper'
+    }
+    return labels[type] || type
+  }
+
+  const getPlaceholder = (type) => {
+    const labels = {
+      book: 'L',
+      movie: 'P',
+      series: 'S',
+      music: 'M',
+      paper: 'A'
+    }
+    return labels[type] || 'R'
+  }
+
   return (
     <div className="home">
       <header className="home-header">
@@ -44,9 +66,28 @@ function Home() {
         <div className="items-grid">
           {items.map(item => (
             <Link to={`/item/${item.id}`} key={item.id} className="item-card">
-              <h3>{item.title}</h3>
-              <p className="item-type">{item.type}</p>
-              {item.rating && <p className="item-rating">★ {item.rating}/10</p>}
+              <div className="item-cover-wrap">
+                {item.cover_url ? (
+                  <img src={item.cover_url} alt={item.title} className="item-cover" />
+                ) : (
+                  <div className="item-cover-placeholder">
+                    <span>{getPlaceholder(item.type)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="item-card-body">
+                <h3 className="item-card-title">{item.title}</h3>
+                {item.creator && <p className="item-card-creator">{item.creator}</p>}
+                <div className="item-card-meta">
+                  <span className="item-type-badge">{getTypeLabel(item.type)}</span>
+                  {item.rating && <span className="item-rating-badge">★ {item.rating}/10</span>}
+                </div>
+                {(item.reading_progress > 0 || item.current_page > 0) && (
+                  <div className="item-progress">
+                    <div className="item-progress-bar" style={{ width: `${Math.min(100, item.reading_progress || 0)}%` }} />
+                  </div>
+                )}
+              </div>
             </Link>
           ))}
         </div>

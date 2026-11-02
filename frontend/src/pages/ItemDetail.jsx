@@ -168,12 +168,42 @@ function ItemDetail() {
     <div className="item-detail-layout">
       <div className="item-detail-main">
         <div className="item-detail-header">
-          {(item.cover_url || item.type === 'book') && (
+          {item.cover_url ? (
             <img 
-              src={item.cover_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=300&fit=crop'} 
-              alt={item.title} 
+              src={item.cover_url} 
+              alt={item.title}
               className="item-detail-cover"
             />
+          ) : (
+            <div className="item-detail-cover-placeholder">
+              <span>{item.type?.[0]?.toUpperCase() || 'R'}</span>
+            </div>
+          )}
+          {item.thoughts && (
+            <div className="item-detail-thoughts">
+              {(() => {
+                const text = item.thoughts || ''
+                if (text.trim().startsWith('<')) {
+                  return <div dangerouslySetInnerHTML={{ __html: text }} />
+                }
+                const formatText = (t) => {
+                  let result = t
+                  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+                  result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                  result = result.replace(/__([^_]+)__/g, '<u>$1</u>')
+                  result = result.replace(/~~([^~]+)~~/g, '<s>$1</s>')
+                  result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                  result = result.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">Ver enlace</a>')
+                  return result
+                }
+                return <div dangerouslySetInnerHTML={{ __html: formatText(text).replace(/\n/g, '<br/>') }} />
+              })()}
+            </div>
+          )}
+          ) : (
+            <div className="item-detail-cover-placeholder">
+              <span>{item.type?.[0]?.toUpperCase() || 'R'}</span>
+            </div>
           )}
           <div className="item-detail-info">
             <h1>{item.title}</h1>

@@ -2,10 +2,11 @@ import { useNavigate } from 'react-router-dom'
 import './AddLibrarySelector.css'
 
 const types = [
-  { id: 'paper', label: 'Paper', description: 'Artículos científicos y académicos' },
   { id: 'book', label: 'Libro', description: 'Novelas, ensayo, poesía y más' },
-  { id: 'music', label: 'Disco', description: 'Álbumes, EPs y música' },
-  { id: 'media', label: 'Serie / Película', description: 'Series, películas y documentales' }
+  { id: 'movie', label: 'Película', description: 'Largometrajes, documentales' },
+  { id: 'series', label: 'Serie', description: 'Series de TV y miniseries' },
+  { id: 'music', label: 'Música', description: 'Álbumes, EPs y discos' },
+  { id: 'paper', label: 'Paper', description: 'Artículos científicos y académicos' }
 ]
 
 function AddLibrarySelector() {

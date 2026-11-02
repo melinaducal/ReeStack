@@ -1,197 +1,332 @@
+.feed-shell {
+  width: 100%;
+}
+
+.feed-hero {
+  background: radial-gradient(circle at top, rgba(196, 164, 255, 0.18), transparent 60%),
+    radial-gradient(circle at bottom, rgba(217, 191, 214, 0.16), transparent 70%);
+  border-bottom: 1px solid rgba(139, 123, 168, 0.18);
+  margin-bottom: 2.5rem;
+}
+
+.feed-hero-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 2.5rem;
+  text-align: center;
+}
+
+.feed-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  font-size: 0.8rem;
+  color: #7a6b9a;
+  margin-bottom: 0.9rem;
+}
+
+.feed-hero-title {
+  font-family: 'Lora', Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #2f2438;
+  margin-bottom: 0.8rem;
+}
+
+.feed-hero-subtitle {
+  color: #5f516f;
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+}
+
 .feed-layout {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 2.5rem;
-  max-width: 1100px;
+  grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
+  gap: 2.8rem;
+  max-width: 1180px;
   margin: 0 auto;
+  padding: 0 1.5rem 3rem;
+  align-items: start;
 }
 
-.feed-header {
-  margin-bottom: 2rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid rgba(188, 96, 66, 0.25);
+.feed-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
 }
 
-.feed-header h1 {
-  font-size: 2.2rem;
-  font-weight: 600;
+.feed-section-header h2 {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 1.8rem;
+  color: #2f2438;
   margin-bottom: 0.4rem;
-  letter-spacing: -0.01em;
 }
 
-.feed-subtitle {
-  color: #BC6042;
-  font-size: 1rem;
+.feed-section-header p {
+  color: #6f6285;
+}
+
+.feed-state {
+  text-align: center;
+  color: #6f6285;
+  padding: 2rem 1rem;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+  border: 1px solid rgba(139, 123, 168, 0.16);
+  box-shadow: 0 20px 40px -30px rgba(47, 36, 56, 0.8);
+}
+
+.feed-error {
+  color: #8b5a5a;
 }
 
 .posts-list {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1rem;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .post-card {
-  background: rgba(255, 255, 255, 0.65);
-  padding: 1.75rem;
-  border-radius: 10px;
-  box-shadow: 0 1px 6px rgba(35, 63, 73, 0.06);
-  border: 1px solid rgba(201, 143, 134, 0.25);
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 14px;
+  border: 1px solid rgba(139, 123, 168, 0.16);
+  box-shadow: 0 30px 50px -36px rgba(47, 36, 56, 0.9);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.post-header {
+.post-card-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  padding: 1rem 1.4rem 0.7rem;
+}
+
+.post-user {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
 }
 
 .post-avatar {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  object-fit: cover;
-}
-
-.post-meta {
-  flex: 1;
-}
-
-.post-author {
-  font-weight: 500;
-  color: #233F49;
-}
-
-.post-date {
-  font-size: 0.875rem;
-  color: #6b7c85;
-  margin-top: 0.2rem;
-}
-
-.post-related {
+  background: linear-gradient(135deg, rgba(196, 164, 255, 0.38), rgba(217, 191, 214, 0.28));
+  color: #2f2438;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: rgba(245, 235, 221, 0.6);
-  border-radius: 8px;
+  justify-content: center;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: 0.9rem;
 }
 
-.post-cover {
-  width: 40px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 4px;
-  flex-shrink: 0;
+.post-user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.post-related-text {
-  font-size: 0.95rem;
-  color: #233F49;
+.post-user-name {
+  font-weight: 600;
+  color: #2f2438;
+  font-family: 'Lora', Georgia, serif;
+}
+
+.post-timestamp {
+  font-size: 0.88rem;
+  color: #7a6b9a;
+  text-transform: capitalize;
+}
+
+.post-content-block {
+  padding: 0 1.4rem;
+}
+
+.post-review {
+  color: #3f344c;
+  line-height: 1.8;
+  font-size: 0.98rem;
+  white-space: pre-wrap;
+}
+
+.post-media-block {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0.9rem 1.4rem 0;
+}
+
+.post-media-image {
+  width: 100%;
+  height: auto;
+  max-height: 380px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 123, 168, 0.14);
+  background: radial-gradient(circle at top, rgba(196, 164, 255, 0.12), transparent 70%);
+}
+
+.post-related-block {
+  margin: 0.9rem 1.4rem 0;
+  border: 1px solid rgba(139, 123, 168, 0.16);
+  border-radius: 12px;
+  padding: 0.7rem 1rem;
+  background: rgba(196, 164, 255, 0.1);
+}
+
+.post-related-link {
+  text-decoration: none;
+  color: inherit;
 }
 
 .post-related-title {
-  font-weight: 500;
+  font-family: 'Lora', Georgia, serif;
+  color: #2f2438;
 }
 
-.post-content {
-  line-height: 1.7;
-  color: #233F49;
+.post-related-meta {
+  color: #7a6b9a;
+  font-size: 0.9rem;
 }
 
-.post-content p {
-  white-space: pre-wrap;
+.post-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1.4rem 1rem;
+  border-top: 1px solid rgba(139, 123, 168, 0.12);
+  margin-top: 0.9rem;
+}
+
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.post-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #6f6285;
+  font-family: inherit;
+  font-size: 0.92rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.post-action-btn:hover {
+  background: rgba(196, 164, 255, 0.14);
+  color: #2f2438;
+}
+
+.post-action-btn.liked {
+  color: var(--accent-violet, #6B46C1);
+}
+
+.post-detail-link {
+  color: #7a6b9a;
+  text-decoration: none;
+}
+
+.post-detail-link:hover {
+  text-decoration: underline;
 }
 
 .feed-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.6rem;
+  position: sticky;
+  top: 6rem;
 }
 
-.sidebar-section {
-  background: rgba(255, 255, 255, 0.65);
-  padding: 1.25rem;
-  border-radius: 10px;
-  box-shadow: 0 1px 6px rgba(35, 63, 73, 0.06);
-  border: 1px solid rgba(201, 143, 134, 0.25);
+.sidebar-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  border: 1px solid rgba(139, 123, 168, 0.18);
+  box-shadow: 0 40px 60px -40px rgba(47, 36, 56, 0.9);
+  overflow: hidden;
 }
 
-.sidebar-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
+.sidebar-card-title {
   font-family: 'Lora', Georgia, serif;
+  font-size: 1.3rem;
+  color: #2f2438;
+  padding: 1.6rem 1.8rem 0.8rem;
 }
 
-.sidebar-list {
+.sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
 }
 
-.sidebar-item {
+.sidebar-nav-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-}
-
-.sidebar-cover {
-  width: 40px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.sidebar-item-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.sidebar-item-title {
-  font-size: 0.9rem;
-  color: #233F49;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sidebar-item-status {
-  font-size: 0.8rem;
-  color: #BC6042;
-  margin-top: 0.2rem;
-  text-transform: capitalize;
-}
-
-.sidebar-stack {
-  padding: 0;
-}
-
-.stack-link {
-  display: block;
-  padding: 1.25rem;
+  justify-content: space-between;
+  padding: 0.9rem 1.8rem;
   text-decoration: none;
-  color: inherit;
-  transition: background 0.2s ease;
+  color: #3f344c;
+  border-top: 1px solid rgba(139, 123, 168, 0.12);
 }
 
-.stack-link:hover {
-  background: rgba(201, 143, 134, 0.15);
+.sidebar-nav-item:hover {
+  background: rgba(196, 164, 255, 0.12);
 }
 
-.stack-description {
-  font-size: 0.9rem;
-  color: #BC6042;
-  margin-top: 0.3rem;
+.sidebar-nav-arrow {
+  color: #7a6b9a;
 }
 
-@media (max-width: 968px) {
+.sidebar-card-subtle .sidebar-card-title {
+  padding-bottom: 0.6rem;
+}
+
+.sidebar-card-text {
+  padding: 0 1.8rem 1.8rem;
+  color: #6f6285;
+  line-height: 1.8;
+}
+
+@media (max-width: 1080px) {
   .feed-layout {
     grid-template-columns: 1fr;
   }
-  
+
   .feed-sidebar {
+    position: static;
     order: -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .sidebar-card {
+    flex: 1 1 280px;
+  }
+}
+
+@media (max-width: 880px) {
+  .post-body {
+    grid-template-columns: 1fr;
+  }
+
+  .post-media {
+    justify-content: flex-start;
+  }
+
+  .post-cover-large,
+  .post-cover-placeholder {
+    width: 160px;
+    height: 240px;
   }
 }

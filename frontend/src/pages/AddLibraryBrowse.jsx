@@ -7,103 +7,68 @@ function AddLibraryBrowse() {
   const navigate = useNavigate()
   const location = useLocation()
   const type = location.state?.type || 'book'
-  
+
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
-  const [selectedBook, setSelectedBook] = useState(null)
+  const [selectedItem, setSelectedItem] = useState(null)
   const [pages, setPages] = useState('')
+  const [rating, setRating] = useState('')
+  const [thoughts, setThoughts] = useState('')
+  const [visibility, setVisibility] = useState('public')
 
   const typeLabels = {
     paper: 'papers',
     book: 'libros',
-    music: 'discos',
-    media: 'series/películas'
+    music: 'música',
+    movie: 'películas',
+    series: 'series'
+  }
+
+  const getPlaceholder = (t) => {
+    const map = { book: 'L', movie: 'P', series: 'S', music: 'M', paper: 'A' }
+    return map[t] || 'R'
   }
 
   const search = async () => {
     if (!searchQuery.trim()) return
     setLoading(true)
-    setSelectedBook(null)
+    setSelectedItem(null)
     try {
-      if (type === 'book') {
-        const response = await fetch(
-          `https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=20`
-        )
-        const data = await response.json()
-        setResults(data.docs || [])
-      } else {
-        setResults([
-          { key: '1', title: `${searchQuery} - Ejemplo`, author_name: ['Autor Ejemplo'] },
-          { key: '2', title: `${searchQuery} (variante)`, author_name: ['Artista Ejemplo'] }
-        ])
-      }
+      const response = await api.get('/catalog/search', { params: { q: searchQuery, type } })
+      setResults(response.data.results || [])
     } catch (error) {
       console.error('Error searching:', error)
-    }
-    setLoading(false)
-  }
-
-  const selectBook = async (book) => {
-    if (type === 'book') {
-      setSelectedBook(book)
-      setPages('')
-    } else {
-      addItem(book)
+      setResults([])
+    } finally {
+      setLoading(false)
     }
   }
 
-  const addBook = async () => {
+  const selectItem = (item) => {
+    setSelectedItem(item)
+    setPages('')
+    setRating('')
+    setThoughts('')
+    setVisibility('public')
+  }
+
+  const confirmAdd = async () => {
+    if (!selectedItem) return
     try {
-      const book = selectedBook
-      const coverId = book.cover_i
-      const coverUrl = coverId 
-        ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`
-        : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=300&fit=crop'
-      
-      await api.post('/items', {
-        title: book.title,
-        type: 'book',
-        creator: book.author_name?.join(', ') || '',
-        year: book.first_publish_year || null,
-        rating: null,
-        thoughts: '',
-        cover_url: coverUrl,
-        pages: pages ? parseInt(pages) : null
-      })
-      navigate('/')
-    } catch (error) {
-      console.error('Error adding item:', error)
-    }
-  }
-
-  const addItem = async (item) => {
-    try {
-      if (type === 'book') {
-        const coverUrl = item.cover_i 
-          ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg`
-          : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=300&fit=crop'
-        await api.post('/items', {
-          title: item.title,
-          type: 'book',
-          creator: item.author_name?.join(', ') || '',
-          year: item.first_publish_year || null,
-          rating: null,
-          thoughts: '',
-          cover_url: coverUrl,
-          pages: null
-        })
-      } else {
-        await api.post('/items', {
-          title: item.title || searchQuery,
-          type: type === 'media' ? 'series' : type,
-          creator: item.author_name?.join(', ') || '',
-          year: null,
-          rating: null,
-          thoughts: ''
-        })
+      const payload = {
+        title: selectedItem.title,
+        type: type,
+        creator: selectedItem.creator || selectedItem.author || selectedItem.artist || '',
+        year: selectedItem.year || selectedItem.first_publish_year || null,
+        rating: rating !== '' ? parseInt(rating) : null,
+        thoughts: thoughts || '',
+        cover_url: selectedItem.cover_url || null,
+        pages: type === 'book' && pages ? parseInt(pages) : null
       }
-      navigate('/')
+      const res = await api.post('/items', payload)
+      const itemId = res.data.id
+      navigate(`/item/${itemId}`)
     } catch (error) {
       console.error('Error adding item:', error)
     }
@@ -117,7 +82,7 @@ function AddLibraryBrowse() {
         <p className="browse-subtitle">Buscá por nombre, autor o artista</p>
       </header>
 
-      {!selectedBook && (
+      {!selectedItem && (
         <>
           <div className="search-bar">
             <input
@@ -125,7 +90,7 @@ function AddLibraryBrowse() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && search()}
-              placeholder="Escribí el nombre del libro, autor o artista..."
+              placeholder="Escribí el nombre, autor o artista..."
               className="search-input"
             />
             <button onClick={search} className="search-button">Buscar</button>
@@ -134,59 +99,82 @@ function AddLibraryBrowse() {
           {loading && <p className="loading-text">Buscando...</p>}
 
           <div className="results-grid">
-            {results.map((item, idx) => {
-              const coverId = item.cover_i
-              const coverUrl = coverId 
-                ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`
-                : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=300&fit=crop'
-              return (
-                <button
-                  key={item.key || idx}
-                  onClick={() => selectBook(item)}
-                  className="result-card"
-                >
-                  <img src={coverUrl} alt={item.title} className="result-cover" />
-                  <div className="result-info">
-                    <p className="result-title">{item.title}</p>
-                    {item.author_name && <p className="result-author">{item.author_name.join(', ')}</p>}
+            {results.map((item, idx) => (
+              <button
+                key={item.id || idx}
+                onClick={() => selectItem(item)}
+                className="result-card"
+              >
+                {item.cover_url ? (
+                  <img src={item.cover_url} alt={item.title} className="result-cover" />
+                ) : (
+                  <div className="result-cover-placeholder">
+                    <span>{getPlaceholder(type)}</span>
                   </div>
-                </button>
-              )
-            })}
+                )}
+                <div className="result-info">
+                  <p className="result-title">{item.title}</p>
+                  {(item.creator || item.author || item.artist) && (
+                    <p className="result-author">{item.creator || item.author || item.artist}</p>
+                  )}
+                  {(item.year || item.first_publish_year) && (
+                    <p className="result-year">{item.year || item.first_publish_year}</p>
+                  )}
+                </div>
+              </button>
+            ))}
           </div>
         </>
       )}
 
-      {selectedBook && type === 'book' && (
-        <div className="book-details">
-          <div className="book-details-header">
-            <img 
-              src={selectedBook.cover_i 
-                ? `https://covers.openlibrary.org/b/id/${selectedBook.cover_i}-L.jpg`
-                : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&h=300&fit=crop'
-              } 
-              alt={selectedBook.title} 
-              className="book-details-cover"
-            />
-            <div className="book-details-info">
-              <h2>{selectedBook.title}</h2>
-              {selectedBook.author_name && <p className="book-details-author">{selectedBook.author_name.join(', ')}</p>}
-              {selectedBook.first_publish_year && <p className="book-details-year">{selectedBook.first_publish_year}</p>}
+      {selectedItem && (
+        <div className="confirm-panel">
+          <div className="confirm-header">
+            {selectedItem.cover_url ? (
+              <img src={selectedItem.cover_url} alt={selectedItem.title} className="confirm-cover" />
+            ) : (
+              <div className="confirm-cover-placeholder">
+                <span>{getPlaceholder(type)}</span>
+              </div>
+            )}
+            <div className="confirm-info">
+              <h2>{selectedItem.title}</h2>
+              {(selectedItem.creator || selectedItem.author || selectedItem.artist) && (
+                <p className="confirm-creator">{selectedItem.creator || selectedItem.author || selectedItem.artist}</p>
+              )}
+              {(selectedItem.year || selectedItem.first_publish_year) && (
+                <p className="confirm-year">{selectedItem.year || selectedItem.first_publish_year}</p>
+              )}
             </div>
           </div>
-          <div className="pages-input-section">
-            <label>Cantidad de páginas (opcional)</label>
-            <input
-              type="number"
-              value={pages}
-              onChange={(e) => setPages(e.target.value)}
-              placeholder="Ingresar cantidad de páginas"
-              className="pages-input"
-            />
+
+          <div className="confirm-form">
+            <div className="confirm-row">
+              <label>Puntuación (0-10)</label>
+              <input type="number" min="0" max="10" value={rating} onChange={(e) => setRating(e.target.value)} />
+            </div>
+            {type === 'book' && (
+              <div className="confirm-row">
+                <label>Páginas</label>
+                <input type="number" value={pages} onChange={(e) => setPages(e.target.value)} />
+              </div>
+            )}
+            <div className="confirm-row">
+              <label>Reseña</label>
+              <textarea value={thoughts} onChange={(e) => setThoughts(e.target.value)} rows={4} />
+            </div>
+            <div className="confirm-row">
+              <label>Visibilidad</label>
+              <select value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+                <option value="public">Pública</option>
+                <option value="private">Privada</option>
+              </select>
+            </div>
           </div>
-          <div className="book-details-actions">
-            <button onClick={() => setSelectedBook(null)} className="back-to-search">Volver a buscar</button>
-            <button onClick={addBook} className="add-book-confirm">Agregar a Mi Stack</button>
+
+          <div className="confirm-actions">
+            <button onClick={() => setSelectedItem(null)} className="confirm-back">Volver a buscar</button>
+            <button onClick={confirmAdd} className="confirm-save">Guardar y ver detalle</button>
           </div>
         </div>
       )}
@@ -195,3 +183,4 @@ function AddLibraryBrowse() {
 }
 
 export default AddLibraryBrowse
+

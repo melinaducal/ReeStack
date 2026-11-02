@@ -6,7 +6,11 @@ const themePalettes = [
   { id: 'default', name: 'Clásico editorial', description: 'Violeta tenue con acentos cálidos', accent: '#6B46C1', bg: '#fbf7f3', surface: '#ffffff', border: '#e6dfd6' },
   { id: 'rose', name: 'Rosa empolvado', description: 'Tonos malva y rosa vintage', accent: '#B98A9D', bg: '#f8f5f7', surface: '#ffffff', border: '#e7dfe6' },
   { id: 'lavender', name: 'Lavanda tenue', description: 'Suave, aireado y editorial', accent: '#9B8BFF', bg: '#f7f6fb', surface: '#ffffff', border: '#e5e1f3' },
-  { id: 'plum', name: 'Ciruela', description: 'Profundo y sofisticado', accent: '#7C3FBF', bg: '#f7f5fa', surface: '#ffffff', border: '#e4dff0' }
+  { id: 'plum', name: 'Ciruela', description: 'Profundo y sofisticado', accent: '#7C3FBF', bg: '#f7f5fa', surface: '#ffffff', border: '#e4dff0' },
+  { id: 'moss', name: 'Verde musgo', description: 'Natural, sereno y elegante', accent: '#7C8B5A', bg: '#f7f8f4', surface: '#ffffff', border: '#e6e7dd' },
+  { id: 'midnight', name: 'Azul noche', description: 'Profundo, íntimo y sofisticado', accent: '#5B6BFF', bg: '#f6f7fb', surface: '#ffffff', border: '#e2e4f3' },
+  { id: 'sky', name: 'Celeste pastel', description: 'Aireado, fresco y editorial', accent: '#7AA2FF', bg: '#f6f9ff', surface: '#ffffff', border: '#e3e8f6' },
+  { id: 'dusty', name: 'Cobre tenue', description: 'Cálido sin naranja intenso', accent: '#B9A07E', bg: '#f8f6f2', surface: '#ffffff', border: '#e7e1d6' }
 ]
 
 function Settings() {
