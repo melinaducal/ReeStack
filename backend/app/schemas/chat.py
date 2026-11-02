@@ -35,6 +35,11 @@ class ChatRecommendResponse(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     conversation_id: Optional[int] = None
     intent: Dict[str, Any] = Field(default_factory=dict)
+    # Contextual turn metadata. Defaults keep older clients working.
+    action: str = "recommend"
+    context: Dict[str, Any] = Field(default_factory=dict)
+    spoiler_warning: bool = False
+    spoilers_revealed: bool = False
 
 
 class ConversationCreate(BaseModel):

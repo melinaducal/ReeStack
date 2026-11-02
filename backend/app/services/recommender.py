@@ -428,8 +428,24 @@ def _genre_query(keys: Sequence[str]) -> str:
     return " ".join(GENRE_BY_KEY[key].query for key in keys)
 
 
-def derive_search_queries(intent: Intent, profile: TasteProfile, media_type: str) -> List[str]:
+def derive_search_queries(
+    intent: Intent,
+    profile: TasteProfile,
+    media_type: str,
+    seed: Optional[dict] = None,
+) -> List[str]:
     queries: List[str] = []
+
+    # "Dame otros parecidos al primero": the seed work drives the search even
+    # when the user's message names no genre.
+    if seed and seed.get("type") == media_type:
+        genres = [genre for genre in seed.get("matched_genres") or [] if genre]
+        if genres:
+            queries.append(" y ".join(genres[:2]))
+        if seed.get("creator"):
+            queries.append(str(seed["creator"]))
+        elif seed.get("title"):
+            queries.append(str(seed["title"]))
 
     if intent.genres:
         queries.append(_genre_query(intent.genres))
@@ -462,11 +478,12 @@ async def _collect_for_type(
     profile: TasteProfile,
     media_type: str,
     per_query: int,
+    seed: Optional[dict] = None,
 ) -> Tuple[List[dict], List[str]]:
     collected: List[dict] = []
     warnings: List[str] = []
 
-    queries = derive_search_queries(intent, profile, media_type)
+    queries = derive_search_queries(intent, profile, media_type, seed)
     for query in queries:
         results, _source, errors = await catalog.search_catalog_results(media_type, query)
         for error in errors:
@@ -501,8 +518,12 @@ async def search_candidates(
     profile: TasteProfile,
     types: Sequence[str],
     per_query: int = 12,
+    seed: Optional[dict] = None,
 ) -> Tuple[List[dict], List[str]]:
-    tasks = [_collect_for_type(intent, profile, media_type, per_query) for media_type in types]
+    tasks = [
+        _collect_for_type(intent, profile, media_type, per_query, seed)
+        for media_type in types
+    ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     candidates: List[dict] = []
@@ -707,9 +728,16 @@ def build_llm_prompt(
         for key in sorted(profile.creator_weights, key=profile.creator_weights.get, reverse=True)[:5]
     ]
     library = sorted(profile.consumed_titles)[:40]
-    history_text = "\n".join(
-        f"{turn['role']}: {turn['content'][:300]}" for turn in history[-6:]
-    ) or "(sin historial)"
+    history_lines = []
+    for turn in history[-6:]:
+        line = f"{turn['role']}: {str(turn.get('content', ''))[:300]}"
+        works = turn.get("works") or []
+        if works:
+            # The model must see what was already suggested, not only the
+            # assistant's plain-text summary.
+            line += f" | obras ya mostradas: {', '.join(works)}"
+        history_lines.append(line)
+    history_text = "\n".join(history_lines) or "(sin historial)"
 
     system = (
         "Sos el asistente de recomendaciones de ReeStack. Proponés obras concretas "
@@ -928,6 +956,7 @@ async def recommend(
     exclude_consumed: bool = True,
     exclude_titles: Optional[Sequence[str]] = None,
     history: Optional[Sequence[dict]] = None,
+    seed: Optional[dict] = None,
 ) -> dict:
     history = list(history or [])
     intent = parse_request(message, forced_type)
@@ -962,7 +991,9 @@ async def recommend(
         warnings.append("llm_key_missing")
 
     if not candidates:
-        searched, search_warnings = await search_candidates(intent, profile, types)
+        searched, search_warnings = await search_candidates(
+            intent, profile, types, seed=seed
+        )
         warnings.extend(search_warnings)
         candidates = searched
         if engine == "llm":
