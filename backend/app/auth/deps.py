@@ -15,11 +15,20 @@ def _user_from_token(token: str, db: Session):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
+        token_version = int(payload.get("ver", 0))
         if email is None:
             return None
-    except JWTError:
+    except (JWTError, TypeError, ValueError):
         return None
-    return db.query(User).filter(User.email == email).first()
+
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        return None
+    # A password reset bumps token_version, invalidating every older token.
+    # Tokens minted before this claim existed decode as version 0.
+    if token_version != int(user.token_version or 0):
+        return None
+    return user
 
 
 def get_optional_user(

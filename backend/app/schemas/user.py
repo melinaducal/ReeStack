@@ -4,6 +4,25 @@ from datetime import date
 
 from .item import PublicItemResponse
 
+PASSWORD_SPECIAL_CHARS = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+
+
+def validate_password_strength(value: str) -> str:
+    """Single source of truth for the password policy.
+
+    Registration and password reset both use it, so a reset can never set a
+    password weaker than the one registration accepts.
+    """
+    if not any(c.isupper() for c in value):
+        raise ValueError('La contraseña debe tener al menos una mayúscula')
+    if not any(c.islower() for c in value):
+        raise ValueError('La contraseña debe tener al menos una minúscula')
+    if not any(c.isdigit() for c in value):
+        raise ValueError('La contraseña debe tener al menos un número')
+    if not any(c in PASSWORD_SPECIAL_CHARS for c in value):
+        raise ValueError('La contraseña debe tener al menos un carácter especial')
+    return value
+
 
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=30)
@@ -18,15 +37,7 @@ class UserCreate(UserBase):
 
     @validator('password')
     def validate_password(cls, v):
-        if not any(c.isupper() for c in v):
-            raise ValueError('La contraseña debe tener al menos una mayúscula')
-        if not any(c.islower() for c in v):
-            raise ValueError('La contraseña debe tener al menos una minúscula')
-        if not any(c.isdigit() for c in v):
-            raise ValueError('La contraseña debe tener al menos un número')
-        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in v):
-            raise ValueError('La contraseña debe tener al menos un carácter especial')
-        return v
+        return validate_password_strength(v)
 
     @validator('birth_date')
     def validate_age(cls, v):
@@ -89,6 +100,15 @@ class CollectionResponse(BaseModel):
 
 class ForgotPassword(BaseModel):
     email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., min_length=20, max_length=512)
+    new_password: str = Field(..., min_length=8)
+
+    @validator('new_password')
+    def validate_new_password(cls, v):
+        return validate_password_strength(v)
 
 
 class ThemeUpdate(BaseModel):

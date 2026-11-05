@@ -185,7 +185,12 @@ def test_login_nonexistent_user(client):
     assert response.json()["detail"] == "Correo o contraseña incorrectos"
 
 
-def test_forgot_password(client):
+def test_forgot_password(client, monkeypatch):
+    # The endpoint refuses to pretend when SMTP is missing; configure a
+    # no-op sender for this contract test.
+    monkeypatch.setattr("app.routers.auth.ensure_email_configured", lambda: None)
+    monkeypatch.setattr("app.routers.auth.send_password_reset_email", lambda **kwargs: None)
+
     response = client.post(
         "/auth/forgot-password",
         json={"email": "test@example.com"}

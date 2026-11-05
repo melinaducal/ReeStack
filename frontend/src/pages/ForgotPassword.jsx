@@ -1,22 +1,27 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
+import { getErrorMessage } from '../services/errors'
 import './ForgotPassword.css'
 
 function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setIsSubmitting(true)
     try {
       const response = await api.post('/auth/forgot-password', { email })
-      setMessage(response.data.message)
+      setMessage(response.data.message || 'Si el correo está registrado, vas a recibir un enlace para restablecer tu contraseña.')
       setError('')
     } catch (error) {
-      setError(error.response?.data?.detail || 'Error al enviar solicitud')
+      setError(getErrorMessage(error, 'Error al enviar solicitud'))
       setMessage('')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -50,7 +55,14 @@ function ForgotPassword() {
             </div>
             {error && <p className="error-message">{error}</p>}
             {message && <p className="success-message">{message}</p>}
-            <button type="submit" className="auth-button">Enviar</button>
+            {message && (
+              <p className="forgot-description">
+                Revisá tu bandeja de entrada y la carpeta de spam. El enlace vence en 30 minutos.
+              </p>
+            )}
+            <button type="submit" className="auth-button" disabled={isSubmitting}>
+              {isSubmitting ? 'Enviando…' : 'Enviar'}
+            </button>
           </form>
           <div className="auth-links">
             <Link to="/login">Volver al inicio de sesión</Link>

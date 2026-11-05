@@ -112,6 +112,16 @@ Antes de dar por finalizada cualquier tarea:
 - Mantener validación de contraseña fuerte en registro
 - No almacenar contraseñas en texto plano
 
+### Recuperación de contraseña
+- Endpoints: `POST /auth/forgot-password` y `POST /auth/reset-password`.
+- El token se genera con `secrets.token_urlsafe(32)`, vence en 30 minutos, es de un solo uso y solo se guarda su hash SHA-256 en `password_reset_tokens`.
+- La respuesta de solicitud es siempre genérica, exista o no el correo.
+- Rate limiting por IP y por correo; con varios workers hace falta un store compartido (Redis).
+- El correo se envía por SMTP real. Si `SMTP_HOST` o `SMTP_FROM_EMAIL` faltan, la API devuelve `503` en lugar de simular el envío.
+- Nunca registrar contraseñas, tokens ni enlaces de recuperación en logs.
+- **Invalidación de sesiones:** cada JWT incluye el claim `ver`. Al restablecer la contraseña se incrementa `users.token_version`, por lo que todos los tokens emitidos antes del cambio dejan de validar en `get_current_user`. Los JWT anteriores a esta funcionalidad decodifican `ver=0`, compatible con usuarios existentes hasta su primer reset.
+- Migración aditiva: `python backend/migrate_password_reset.py` (agrega `users.token_version` y crea `password_reset_tokens`; no borra datos).
+
 ### Variables de entorno
 - Claves API (LLM) SOLO en backend, NUNCA en frontend
 - Usar `.env` (ignorado por git) y `.env.example` como referencia

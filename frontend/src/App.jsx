@@ -11,6 +11,7 @@ import AddLibraryBrowse from './pages/AddLibraryBrowse'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Chatbot from './pages/Chatbot'
 import Settings from './pages/Settings'
 import Profile from './pages/Profile'
@@ -70,6 +71,7 @@ function App() {
           <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/" replace />} />
           <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/" replace />} />
           <Route path="/forgot-password" element={!isAuthenticated ? <ForgotPassword /> : <Navigate to="/" replace />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/" element={isAuthenticated ? <Feed /> : <Navigate to="/login" replace />} />
           <Route path="/stack" element={isAuthenticated ? <Home /> : <Navigate to="/login" replace />} />
           <Route path="/settings" element={isAuthenticated ? <Settings /> : <Navigate to="/login" replace />} />

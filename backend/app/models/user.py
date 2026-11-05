@@ -16,4 +16,7 @@ class User(Base):
     display_name = Column(String, nullable=True)
     bio = Column(Text, nullable=True)
     avatar_url = Column(String, nullable=True)
+    # Incremented on every password reset. Access tokens carry the version they
+    # were minted with, so bumping this invalidates every previous session.
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
 

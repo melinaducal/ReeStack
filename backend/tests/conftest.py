@@ -14,6 +14,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from main import app
+from app.services.rate_limit import reset_rate_limits
 
 # Create in-memory SQLite database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -59,6 +60,14 @@ def db_session():
     finally:
         db.close()
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_state():
+    """Keep rate-limit counters from leaking between tests."""
+    reset_rate_limits()
+    yield
+    reset_rate_limits()
 
 
 @pytest.fixture(scope="function")
