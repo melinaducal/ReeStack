@@ -1,11 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import api from '../services/api'
 import './Navbar.css'
 
 function Navbar() {
   const navigate = useNavigate()
   const isAuthenticated = localStorage.getItem('token')
   const [profileOpen, setProfileOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    let cancelled = false
+    const loadUnreadCount = async () => {
+      try {
+        const res = await api.get('/notifications/unread-count')
+        if (!cancelled) setUnreadCount(res.data?.count || 0)
+      } catch (e) {
+        // A failed badge refresh must never break navigation.
+      }
+    }
+
+    loadUnreadCount()
+    const interval = setInterval(loadUnreadCount, 30000)
+    window.addEventListener('focus', loadUnreadCount)
+    window.addEventListener('notifications:updated', loadUnreadCount)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      window.removeEventListener('focus', loadUnreadCount)
+      window.removeEventListener('notifications:updated', loadUnreadCount)
+    }
+  }, [isAuthenticated])
 
   const handleLogout = () => {
     localStorage.clear()
@@ -30,16 +57,24 @@ function Navbar() {
                 <Link to="/users" className="navbar-link">Buscar usuarios</Link>
               </li>
               <li className="navbar-item">
+                <Link to="/friends" className="navbar-link">Amigos</Link>
+              </li>
+              <li className="navbar-item">
                 <Link to="/chatbot" className="navbar-link">ReeIA</Link>
               </li>
               <li className="navbar-item">
-                <Link to="/book-search" className="navbar-link">Buscar</Link>
+                <Link to="/add" className="navbar-link">Buscar y agregar</Link>
               </li>
               <li className="navbar-item">
                 <Link to="/create-post" className="navbar-link">Publicar</Link>
               </li>
               <li className="navbar-item">
-                <Link to="/add" className="navbar-link">Agregar</Link>
+                <Link to="/notifications" className="navbar-icon-btn" aria-label="Notificaciones" title="Notificaciones">
+                  <span className="navbar-bell" aria-hidden="true">🔔</span>
+                  {unreadCount > 0 && (
+                    <span className="navbar-badge navbar-badge-icon">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  )}
+                </Link>
               </li>
               <li className="navbar-item navbar-profile">
                 <button className="navbar-profile-btn" onClick={() => setProfileOpen(!profileOpen)}>

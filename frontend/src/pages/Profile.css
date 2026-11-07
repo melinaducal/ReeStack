@@ -127,9 +127,17 @@
 
 .profile-post-text {
   color: #3f344c;
-  line-height: 1.8;
-  white-space: pre-wrap;
+  line-height: 1.9;
   font-size: 0.98rem;
+}
+
+.profile-post-text p {
+  margin: 0 0 0.8rem;
+}
+
+.profile-post-text a {
+  color: var(--accent-violet, #6B46C1);
+  text-decoration: none;
 }
 
 .profile-post-media {

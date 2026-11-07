@@ -39,7 +39,7 @@ Todo desarrollo debe partir de una especificación en `specs/`.
 - **Si no existe spec:** proponerla pero NO crearla sin aprobación explícita. No asumir funcionalidades.
 - **Archivo fuente:** `specs/` es la fuente de verdad para funcionalidades nuevas o modificadas.
 
-## 2. Trazabilidad de casos de uso (CU01–CU10)
+## 2. Trazabilidad de casos de uso (CU01–CU12)
 
 Relación obligatoria entre CU, especificaciones, implementación y pruebas.
 
@@ -48,13 +48,15 @@ Relación obligatoria entre CU, especificaciones, implementación y pruebas.
 | CU01 | Registrarse e iniciar sesión | Implementado (verificable) | `specs/SPEC-01-autenticacion.md` (falta) | `backend/app/routers/auth.py`, `backend/app/models/user.py`, `backend/app/schemas/user.py`, `frontend/src/pages/Login.jsx`, `frontend/src/pages/Register.jsx`, `frontend/src/pages/ForgotPassword.jsx` | Pendiente de documentar |
 | CU02 | Buscar y agregar contenido | Implementado (verificable) | `specs/SPEC-02-busqueda-agregar.md` (falta) | `frontend/src/pages/AddLibrarySelector.jsx`, `frontend/src/pages/AddLibraryBrowse.jsx`, `frontend/src/pages/BookSearch.jsx`, `backend/app/routers/items.py` | Pendiente de documentar |
 | CU03 | Organizar contenidos y actualizar progreso | Implementado (verificable) | `specs/SPEC-03-progreso.md` (falta) | `backend/app/routers/items.py` (PUT /items/{id}/progress), `frontend/src/pages/ItemDetail.jsx` | Pendiente de documentar |
-| CU04 | Publicar pensamientos | Parcialmente implementado (verificable) | `specs/SPEC-04-publicaciones.md` (falta) | Campo `thoughts` en `backend/app/models/item.py`, usado en formularios. No hay flujo completo de "publicaciones" separado. | Pendiente de documentar |
-| CU05 | Editar o eliminar publicaciones propias | Parcialmente implementado (verificable) | `specs/SPEC-04-publicaciones.md` (falta) | DELETE `/items/{id}` en `backend/app/routers/items.py`. No existe PUT/editar. | Pendiente de documentar |
-| CU06 | Explorar publicaciones de la comunidad | Parcialmente implementado (verificable) | `specs/SPEC-04-publicaciones.md` (falta) | `frontend/src/pages/Feed.jsx` con datos mock, no conectado a BD. | Pendiente de documentar |
-| CU07 | Comentar publicaciones | Implementado (verificable) | `specs/SPEC-05-comentarios.md` (falta) | `backend/app/models/comment.py`, `backend/app/routers/comments.py`, `frontend/src/pages/ItemDetail.jsx` | Pendiente de documentar |
-| CU08 | Dar me gusta a publicaciones | Pendiente (sin evidencia) | `specs/SPEC-06-likes.md` (falta) | Sin modelo/router/frontend verificable | Pendiente de documentar |
-| CU09 | Puntuar y reseñar contenido | Implementado (verificable) | `specs/SPEC-05-comentarios.md` (falta) | Comentarios con `rating` en `backend/app/models/comment.py`, UI en `frontend/src/pages/ItemDetail.jsx` | Pendiente de documentar |
+| CU04 | Publicar pensamientos | Implementado en código (spec pendiente) | `specs/SPEC-04-publicaciones.md` (falta) | `frontend/src/pages/CreatePost.jsx` (envía `type: "post"`), `backend/app/routers/items.py` (POST), contenido rico en `thoughts` | `backend/tests/test_posts_vs_items.py` |
+| CU05 | Editar o eliminar publicaciones propias | Implementado en código (spec pendiente) | `specs/SPEC-04-publicaciones.md` (falta) | PUT y DELETE `/items/{id}` en `backend/app/routers/items.py`, edición de publicación en `frontend/src/pages/ItemDetail.jsx` | `backend/tests/test_posts_vs_items.py` |
+| CU06 | Explorar publicaciones de la comunidad | Implementado en código (spec pendiente) | `specs/SPEC-04-publicaciones.md` (falta) | `frontend/src/pages/Feed.jsx` consumiendo `GET /items/feed` | `backend/tests/test_posts_vs_items.py::test_feed_keeps_posts_and_works` |
+| CU07 | Comentar publicaciones | Implementado (verificable) | `specs/SPEC-05-comentarios.md` (falta) | `backend/app/models/comment.py` (incluye `created_at`), `backend/app/routers/comments.py` (GET/POST/PUT/DELETE con permisos), `frontend/src/pages/ItemDetail.jsx` | `backend/tests/test_social_likes_comments.py` |
+| CU08 | Dar me gusta a publicaciones | Implementado (verificable) | `specs/SPEC-06-likes.md` (falta) | `backend/app/models/like.py` (restricción única item+usuario), `backend/app/routers/likes.py`, contadores reales en `backend/app/routers/items.py`, `frontend/src/pages/Feed.jsx`, `frontend/src/pages/ItemDetail.jsx` | `backend/tests/test_social_likes_comments.py` |
+| CU09 | Puntuar y reseñar contenido | Implementado (verificable) | `specs/SPEC-05-comentarios.md` (falta) | Comentarios con `rating` en `backend/app/models/comment.py`, UI en `frontend/src/pages/ItemDetail.jsx` | `backend/tests/test_social_likes_comments.py`, `backend/tests/test_ratings_fractional.py` |
 | CU10 | Consultar al asistente inteligente | Implementado (verificable) | `specs/casos-uso-chatbot.md` (completa) | `backend/app/routers/chat.py`, `backend/app/services/assistant.py`, `backend/app/services/recommender.py`, `frontend/src/pages/Chatbot.jsx`, `frontend/src/App.jsx` | `backend/tests/test_chat_recommend.py`, `backend/tests/test_chat_contextual.py`, `backend/tests/test_chat_isolation.py` |
+| CU11 | Agregar y gestionar amigos | Implementado (verificable) | `specs/SPEC-11-amigos-notificaciones.md` (completa) | `backend/app/models/friendship.py`, `backend/app/routers/friends.py`, `frontend/src/pages/Friends.jsx`, `frontend/src/pages/UserPublicProfile.jsx` | `backend/tests/test_friends_notifications.py`, `backend/tests/test_migrate_friends.py` |
+| CU12 | Consultar notificaciones | Implementado (verificable) | `specs/SPEC-11-amigos-notificaciones.md` (completa) | `backend/app/models/notification.py`, `backend/app/services/notifications.py`, `backend/app/routers/notifications.py`, `frontend/src/pages/Notifications.jsx`, `frontend/src/components/Navbar.jsx` | `backend/tests/test_friends_notifications.py` |
 
 **Regla:** Solo marcar como "Implementado" con evidencia directa en código. "Parcialmente implementado" o "Pendiente" si falta funcionalidad crítica.
 
@@ -162,19 +164,21 @@ Una funcionalidad se considera COMPLETA solo si:
 
 **Verificadas en código:**
 - Autenticación JWT (registro/login/recuperación)
-- Gestión de items con tipos (book/movie/series/music/paper)
+- Gestión de items con tipos (book/movie/series/music/paper/post)
 - Seguimiento de progreso para libros
-- Comentarios con rating y spoilers
+- Likes con contador real, estado por usuario y restricción de un like activo
+- Comentarios con autor, avatar, fecha, permisos de edición/eliminación y bloqueo de comentarios vacíos
+- Feed conectado a BD real con contadores de likes y comentarios
 - Búsqueda con Open Library
 - Temas personalizables por usuario
-- Feed con datos mock (parcial)
 - Chatbot con LLM API (backend)
 - Animación entrada a librería con prefers-reduced-motion
+- Amistades con solicitudes, aceptación, rechazo y eliminación
+- Notificaciones de amistad, me gusta y comentarios con lectura individual y masiva
 
 **NO verificadas/completas:**
-- Likes (CU08) - sin evidencia
-- Edición completa de publicaciones (CU05) - solo DELETE
-- Feed conectado a BD real (CU06) - usa mocks
+- Specs formales de CU07/CU08/CU09 - faltan
+- Edición completa de publicaciones (CU05) - implementada para publicaciones (`type=post`)
 - Sistema completo de "publicaciones" vs items
 
 ## 9. Protección de funcionalidades existentes

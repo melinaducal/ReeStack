@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -44,10 +45,15 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _normalize_email(value) -> str:
+    """Emails are compared case-insensitively; the stored value keeps its case."""
+    return str(value).strip().lower()
+
+
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     # Check if email exists
-    if db.query(User).filter(User.email == user.email).first():
+    if db.query(User).filter(func.lower(User.email) == _normalize_email(user.email)).first():
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
     # Check if username exists
     if db.query(User).filter(User.username == user.username).first():
@@ -70,7 +76,11 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
+    db_user = (
+        db.query(User)
+        .filter(func.lower(User.email) == _normalize_email(user.email))
+        .first()
+    )
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -99,7 +109,7 @@ def forgot_password(request: ForgotPassword, http_request: Request, db: Session 
         window_env="PASSWORD_RESET_RATE_LIMIT_FORGOT_IP_WINDOW",
         default_window_seconds=900,
     )
-    normalized_email = str(request.email).strip().lower()
+    normalized_email = _normalize_email(request.email)
     enforce_rate_limit(
         f"forgot:email:{normalized_email}",
         limit_env="PASSWORD_RESET_RATE_LIMIT_FORGOT_EMAIL",
@@ -118,7 +128,7 @@ def forgot_password(request: ForgotPassword, http_request: Request, db: Session 
             detail="El servicio de recuperación por correo no está disponible en este momento.",
         )
 
-    db_user = db.query(User).filter(User.email == request.email).first()
+    db_user = db.query(User).filter(func.lower(User.email) == normalized_email).first()
     if not db_user:
         # Same response as the registered case, so existence is not revealed.
         return {"message": GENERIC_FORGOT_MESSAGE}

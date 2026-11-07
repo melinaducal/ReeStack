@@ -13,7 +13,9 @@ function Home() {
 
   const fetchItems = async () => {
     try {
-      const params = filter !== 'all' ? { type: filter, mine: true } : { mine: true }
+      // Mi Stack is the library: social posts live in the feed, not here.
+      const params = { mine: true, include_posts: false }
+      if (filter !== 'all') params.type = filter
       const response = await api.get('/items', { params })
       setItems(response.data)
     } catch (error) {

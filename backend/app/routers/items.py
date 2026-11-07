@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from app.database import get_db
-from app.models import Item, User
+from app.item_types import POST_TYPE
+from app.models import Comment, Item, Like, User
 from app.schemas import (
     ItemCreate,
     ItemResponse,
@@ -16,9 +17,42 @@ from app.auth.deps import get_current_user, get_optional_user
 router = APIRouter(prefix="/items", tags=["items"])
 
 
+def _attach_social_counts(db: Session, items: List[Item]) -> List[Item]:
+    """Attach real like/comment counters without one query per item."""
+    item_ids = [item.id for item in items]
+    if not item_ids:
+        return items
+
+    like_rows = (
+        db.query(Like.item_id, func.count(Like.id))
+        .filter(Like.item_id.in_(item_ids))
+        .group_by(Like.item_id)
+        .all()
+    )
+    comment_rows = (
+        db.query(Comment.item_id, func.count(Comment.id))
+        .filter(Comment.item_id.in_(item_ids))
+        .group_by(Comment.item_id)
+        .all()
+    )
+    like_counts = dict(like_rows)
+    comment_counts = dict(comment_rows)
+
+    for item in items:
+        item.likes_count = like_counts.get(item.id, 0)
+        item.comments_count = comment_counts.get(item.id, 0)
+    return items
+
+
 @router.get("/", response_model=List[ItemResponse])
-def get_items(type: Optional[str] = None, mine: bool = False, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Item)
+def get_items(
+    type: Optional[str] = None,
+    mine: bool = False,
+    include_posts: bool = True,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    query = db.query(Item).options(joinedload(Item.owner))
     if mine:
         query = query.filter(Item.user_id == current_user.id)
     else:
@@ -26,28 +60,33 @@ def get_items(type: Optional[str] = None, mine: bool = False, db: Session = Depe
         query = query.filter(
             or_(Item.is_public.is_(True), Item.user_id == current_user.id)
         )
+    if not include_posts:
+        # Library views ask for cultural works only. Social posts are still
+        # available through the feed, their detail page and type=post.
+        query = query.filter(Item.type != POST_TYPE)
     if type and type != "all":
         query = query.filter(Item.type == type)
-    return query.all()
+    return _attach_social_counts(db, query.all())
 
 
 @router.get("/feed", response_model=List[ItemResponse])
 def get_feed(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    query = db.query(Item).filter(
+    query = db.query(Item).options(joinedload(Item.owner)).filter(
         Item.user_id.isnot(None),
         or_(Item.is_public.is_(True), Item.user_id == current_user.id),
     )
-    return query.order_by(Item.id.desc()).all()
+    return _attach_social_counts(db, query.order_by(Item.id.desc()).all())
 
 
 @router.get("/{item_id}", response_model=ItemResponse)
 def get_item(item_id: int, db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_optional_user)):
-    item = db.query(Item).filter(Item.id == item_id).first()
+    item = db.query(Item).options(joinedload(Item.owner)).filter(Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     if not item.is_public and (current_user is None or current_user.id != item.user_id):
         # 404 instead of 403 so private items do not reveal their existence.
         raise HTTPException(status_code=404, detail="Item not found")
+    _attach_social_counts(db, [item])
     return item
 
 

@@ -25,6 +25,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import httpx
 from sqlalchemy.orm import Session
 
+from app.item_types import POST_TYPE
 from app.models import Comment, Item, User
 from app.routers import catalog
 
@@ -255,7 +256,12 @@ def _add_genre_signals(
 
 def build_profile(db: Session, user: User) -> TasteProfile:
     profile = TasteProfile()
-    items = db.query(Item).filter(Item.user_id == user.id).all()
+    # Social posts are not cultural works: they must not feed the taste model.
+    items = (
+        db.query(Item)
+        .filter(Item.user_id == user.id, Item.type != POST_TYPE)
+        .all()
+    )
     comments = db.query(Comment).filter(Comment.user_id == user.id).all()
 
     item_by_id = {item.id: item for item in items}
@@ -293,7 +299,7 @@ def build_profile(db: Session, user: User) -> TasteProfile:
 
     for comment in comments:
         source_item = item_by_id.get(comment.item_id)
-        if not source_item:
+        if not source_item or source_item.type == POST_TYPE:
             continue
         rating = float(comment.rating) if comment.rating else None
         if rating is not None:

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../services/api'
+import StarRating from '../components/StarRating'
 import './AddLibraryBrowse.css'
 
 function AddLibraryBrowse() {
@@ -13,9 +14,11 @@ function AddLibraryBrowse() {
   const [loading, setLoading] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
   const [pages, setPages] = useState('')
-  const [rating, setRating] = useState('')
+  // UI contract 0-10 (4.5★ = 9/10). Backend (verified: ItemCreate.rating) accepts 1-5 stars; convert /2 on save.
+  const [rating, setRating] = useState(null)
   const [thoughts, setThoughts] = useState('')
   const [visibility, setVisibility] = useState('public')
+  const [saving, setSaving] = useState(false)
 
   const typeLabels = {
     paper: 'papers',
@@ -48,29 +51,32 @@ function AddLibraryBrowse() {
   const selectItem = (item) => {
     setSelectedItem(item)
     setPages('')
-    setRating('')
+    setRating(null)
     setThoughts('')
     setVisibility('public')
   }
 
   const confirmAdd = async () => {
-    if (!selectedItem) return
+    if (!selectedItem || saving) return
+    setSaving(true)
     try {
       const payload = {
         title: selectedItem.title,
         type: type,
         creator: selectedItem.creator || selectedItem.author || selectedItem.artist || '',
         year: selectedItem.year || selectedItem.first_publish_year || null,
-        rating: rating !== '' ? parseInt(rating) : null,
+        rating: rating != null ? rating / 2 : null,
         thoughts: thoughts || '',
         cover_url: selectedItem.cover_url || null,
-        pages: type === 'book' && pages ? parseInt(pages) : null
+        pages: type === 'book' && pages ? parseInt(pages) : null,
+        is_public: visibility === 'public'
       }
       const res = await api.post('/items', payload)
       const itemId = res.data.id
       navigate(`/item/${itemId}`)
     } catch (error) {
       console.error('Error adding item:', error)
+      setSaving(false)
     }
   }
 
@@ -149,23 +155,30 @@ function AddLibraryBrowse() {
           </div>
 
           <div className="confirm-form">
-            <div className="confirm-row">
-              <label>Puntuación (0-10)</label>
-              <input type="number" min="0" max="10" value={rating} onChange={(e) => setRating(e.target.value)} />
+            <div className="confirm-row confirm-row--full">
+              <span className="confirm-label">Tu puntuación</span>
+              <StarRating
+                value={rating}
+                onChange={setRating}
+                scale={10}
+                min={1}
+                disabled={saving}
+                ariaLabel="Tu puntuación de 0 a 10"
+              />
             </div>
             {type === 'book' && (
               <div className="confirm-row">
-                <label>Páginas</label>
-                <input type="number" value={pages} onChange={(e) => setPages(e.target.value)} />
+                <label className="confirm-label" htmlFor="alb-pages">Páginas</label>
+                <input id="alb-pages" type="number" min="1" inputMode="numeric" value={pages} onChange={(e) => setPages(e.target.value)} disabled={saving} placeholder="Opcional" />
               </div>
             )}
-            <div className="confirm-row">
-              <label>Reseña</label>
-              <textarea value={thoughts} onChange={(e) => setThoughts(e.target.value)} rows={4} />
+            <div className="confirm-row confirm-row--full">
+              <label className="confirm-label" htmlFor="alb-thoughts">Reseña personal</label>
+              <textarea id="alb-thoughts" value={thoughts} onChange={(e) => setThoughts(e.target.value)} rows={5} disabled={saving} placeholder="¿Qué te pareció esta obra? Compartí tus impresiones..." />
             </div>
-            <div className="confirm-row">
-              <label>Visibilidad</label>
-              <select value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+            <div className="confirm-row confirm-row--full">
+              <label className="confirm-label" htmlFor="alb-visibility">Visibilidad</label>
+              <select id="alb-visibility" value={visibility} onChange={(e) => setVisibility(e.target.value)} disabled={saving}>
                 <option value="public">Pública</option>
                 <option value="private">Privada</option>
               </select>
@@ -173,8 +186,8 @@ function AddLibraryBrowse() {
           </div>
 
           <div className="confirm-actions">
-            <button onClick={() => setSelectedItem(null)} className="confirm-back">Volver a buscar</button>
-            <button onClick={confirmAdd} className="confirm-save">Guardar y ver detalle</button>
+            <button type="button" onClick={() => !saving && setSelectedItem(null)} className="confirm-back" disabled={saving}>Volver a buscar</button>
+            <button type="button" onClick={confirmAdd} className="confirm-save" disabled={saving}>{saving ? 'Guardando...' : 'Guardar en Mi Stack'}</button>
           </div>
         </div>
       )}

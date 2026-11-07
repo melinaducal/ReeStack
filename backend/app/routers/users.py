@@ -4,7 +4,9 @@ from typing import List, Optional
 from uuid import uuid4
 
 from app.database import get_db
+from app.item_types import CULTURAL_ITEM_TYPES, POST_TYPE
 from app.models import User, Item
+from app.routers.items import _attach_social_counts
 from app.schemas import (
     CollectionResponse,
     UserResponse,
@@ -155,17 +157,24 @@ def get_user_public_by_id(user_id: int, db: Session = Depends(get_db)):
 def get_user_collection(
     user_id: int,
     type: Optional[str] = Query(None),
+    include_posts: bool = Query(False),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Public collection of a user. Private items are never returned."""
+    """Public collection of a user. Private items are never returned.
+
+    A collection holds cultural works. Social posts are excluded unless the
+    caller explicitly asks for them with include_posts=true.
+    """
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     query = db.query(Item).filter(Item.user_id == user.id, Item.is_public.is_(True))
+    if not include_posts:
+        query = query.filter(Item.type != POST_TYPE)
     if type and type != "all":
         query = query.filter(Item.type == type)
 
@@ -184,7 +193,7 @@ def get_user_collection(
         "page": page,
         "limit": limit,
         "pages": (total + limit - 1) // limit,
-        "items": items,
+        "items": _attach_social_counts(db, items),
     }
 
 
@@ -202,13 +211,16 @@ def _public_profile(user: User, db: Session):
         .filter(Item.user_id == user.id, Item.is_public.is_(True))
         .all()
     )
+    cultural_items = [i for i in items if i.type in CULTURAL_ITEM_TYPES]
+    posts = [i for i in items if i.type == POST_TYPE]
     stats = {
-        "items_count": len(items),
-        "books": len([i for i in items if i.type == "book"]),
-        "movies": len([i for i in items if i.type == "movie"]),
-        "series": len([i for i in items if i.type == "series"]),
-        "music": len([i for i in items if i.type == "music"]),
-        "papers": len([i for i in items if i.type == "paper"]),
+        "items_count": len(cultural_items),
+        "books": len([i for i in cultural_items if i.type == "book"]),
+        "movies": len([i for i in cultural_items if i.type == "movie"]),
+        "series": len([i for i in cultural_items if i.type == "series"]),
+        "music": len([i for i in cultural_items if i.type == "music"]),
+        "papers": len([i for i in cultural_items if i.type == "paper"]),
+        "posts_count": len(posts),
     }
     return {
         "id": user.id,

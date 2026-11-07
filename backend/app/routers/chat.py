@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
 from app.database import get_db
+from app.item_types import POST_TYPE
 from app.models import ChatConversation, ChatTurn, Item, User
 from app.schemas import (
     ChatMessage,
@@ -172,7 +173,11 @@ def save_recommendation(
     # Check if already exists in user's library
     existing = (
         db.query(Item)
-        .filter(Item.title == rec.title, Item.user_id == user.id)
+        .filter(
+            Item.title == rec.title,
+            Item.user_id == user.id,
+            Item.type != POST_TYPE,
+        )
         .first()
     )
     if existing:

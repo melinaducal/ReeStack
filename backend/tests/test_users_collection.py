@@ -262,3 +262,45 @@ def test_put_update_accepts_visibility(client, auth_headers):
 
     assert response.status_code == 200
     assert response.json()["is_public"] is False
+
+
+def test_public_profile_posts_keep_social_counts_and_hide_private(
+    client, auth_headers
+):
+    owner_id = _current_user_id(client, auth_headers)
+    public_post = _create_item(
+        client,
+        auth_headers,
+        title="Post publico",
+        type="post",
+        thoughts="<p>Hola</p>",
+    )
+    _create_item(
+        client, auth_headers, title="Post privado", type="post", is_public=False
+    )
+
+    reader = _register_and_login(client, "reader7", "reader7@test.com")
+    assert (
+        client.post(f"/likes/item/{public_post['id']}", headers=reader).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/comments/item/{public_post['id']}",
+            headers=reader,
+            json={"content": "Buen post"},
+        ).status_code
+        == 200
+    )
+
+    body = client.get(
+        f"/users/{owner_id}/collection",
+        headers=reader,
+        params={"include_posts": True, "type": "post"},
+    ).json()
+
+    assert body["total"] == 1
+    post = body["items"][0]
+    assert post["id"] == public_post["id"]
+    assert post["likes_count"] == 1
+    assert post["comments_count"] == 1

@@ -8,8 +8,15 @@ from .item import (
     ProgressUpdate,
 )
 from .user import UserBase, UserCreate, UserLogin, UserResponse, UserUpdate, UserPublic, UserProfilePublic, CollectionResponse, ForgotPassword, ResetPasswordRequest, ThemeUpdate
-from .comment import CommentBase, CommentCreate, CommentResponse
+from .comment import CommentBase, CommentCreate, CommentUpdate, CommentResponse
 from .like import LikeResponse
+from .friend import FriendResponse, FriendRequestResponse, FriendshipStatusResponse
+from .notification import (
+    NotificationActor,
+    NotificationItem,
+    NotificationResponse,
+    UnreadCountResponse,
+)
 from .chat import (
     ChatMessage,
     Recommendation,
@@ -18,4 +25,3 @@ from .chat import (
     ConversationSummary,
     ConversationTurn,
 )
-

@@ -8,6 +8,7 @@ import BookSearch from './pages/BookSearch'
 import Feed from './pages/Feed'
 import AddLibrarySelector from './pages/AddLibrarySelector'
 import AddLibraryBrowse from './pages/AddLibraryBrowse'
+import ExploreAdd from './pages/ExploreAdd'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -17,6 +18,8 @@ import Settings from './pages/Settings'
 import Profile from './pages/Profile'
 import UsersExplore from './pages/UsersExplore'
 import UserPublicProfile from './pages/UserPublicProfile'
+import Friends from './pages/Friends'
+import Notifications from './pages/Notifications'
 import CreatePost from './pages/CreatePost'
 import './App.css'
 
@@ -78,12 +81,14 @@ function App() {
           <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" replace />} />
           <Route path="/users" element={isAuthenticated ? <UsersExplore /> : <Navigate to="/login" replace />} />
           <Route path="/users/:id" element={isAuthenticated ? <UserPublicProfile /> : <Navigate to="/login" replace />} />
+          <Route path="/friends" element={isAuthenticated ? <Friends /> : <Navigate to="/login" replace />} />
+          <Route path="/notifications" element={isAuthenticated ? <Notifications /> : <Navigate to="/login" replace />} />
           <Route path="/create-post" element={isAuthenticated ? <CreatePost /> : <Navigate to="/login" replace />} />
-          <Route path="/add" element={isAuthenticated ? <AddLibrarySelector /> : <Navigate to="/login" replace />} />
+          <Route path="/add" element={isAuthenticated ? <ExploreAdd /> : <Navigate to="/login" replace />} />
           <Route path="/add-item" element={isAuthenticated ? <AddItem /> : <Navigate to="/login" replace />} />
           <Route path="/add-library/browse" element={isAuthenticated ? <AddLibraryBrowse /> : <Navigate to="/login" replace />} />
           <Route path="/item/:id" element={isAuthenticated ? <ItemDetail /> : <Navigate to="/login" replace />} />
-          <Route path="/book-search" element={isAuthenticated ? <BookSearch /> : <Navigate to="/login" replace />} />
+          <Route path="/book-search" element={isAuthenticated ? <Navigate to="/add" replace /> : <Navigate to="/login" replace />} />
           <Route path="/chatbot" element={isAuthenticated ? <Chatbot /> : <Navigate to="/login" replace />} />
         </Routes>
       </div>

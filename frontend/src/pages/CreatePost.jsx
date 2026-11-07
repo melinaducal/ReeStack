@@ -3,8 +3,46 @@ import { useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { FontFamily } from '@tiptap/extension-font-family'
 import api from '../services/api'
 import './CreatePost.css'
+
+const FONT_OPTIONS = [
+  { label: 'Serif (Lora)', value: "'Lora', Georgia, serif" },
+  { label: 'Georgia', value: "Georgia, serif" },
+  { label: 'Times New Roman', value: "'Times New Roman', Times, serif" },
+  { label: 'Arial', value: "Arial, Helvetica, sans-serif" },
+  { label: 'Inter', value: "'Inter', system-ui, sans-serif" },
+  { label: 'Verdana', value: "Verdana, Geneva, sans-serif" }
+]
+
+const SIZE_OPTIONS = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px']
+
+const FontSize = TextStyle.extend({
+  addAttributes() {
+    return {
+      fontSize: {
+        default: null,
+        parseHTML: element => element.style.fontSize || null,
+        renderHTML: attributes => {
+          if (!attributes.fontSize) return {}
+          return { style: `font-size: ${attributes.fontSize}` }
+        }
+      }
+    }
+  },
+  addCommands() {
+    return {
+      setFontSize: (fontSize) => ({ chain }) => {
+        return chain().setMark('textStyle', { fontSize }).run()
+      },
+      unsetFontSize: () => ({ chain }) => {
+        return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run()
+      }
+    }
+  }
+})
 
 function CreatePost() {
   const navigate = useNavigate()
@@ -17,6 +55,9 @@ function CreatePost() {
   const [showLink, setShowLink] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [fontFamily, setFontFamily] = useState(FONT_OPTIONS[0].value)
+  const [fontSize, setFontSize] = useState('16px')
+  const [editorHasText, setEditorHasText] = useState(false)
 
   const editor = useEditor({
     extensions: [
@@ -31,13 +72,20 @@ function CreatePost() {
         code: false,
         codeBlock: false
       }),
-      Underline
+      Underline,
+      TextStyle,
+      FontFamily,
+      FontSize
     ],
     content: '',
     editorProps: {
       attributes: {
         class: 'post-editor-content'
       }
+    },
+    onUpdate: ({ editor: ed }) => {
+      const t = ed.getText().replace(/\u00a0/g, ' ').trim()
+      setEditorHasText(t.length > 0)
     }
   })
 
@@ -87,7 +135,10 @@ function CreatePost() {
     if (!editor) return
     const html = editor.getHTML()
     const textContent = editor.getText().replace(/\u00a0/g, ' ').trim()
-    if (!textContent && !imageUrl.trim() && !gifUrl.trim() && !linkUrl.trim()) return
+    if (!textContent && !imageUrl.trim() && !gifUrl.trim() && !linkUrl.trim()) {
+      alert('Escribí algo o agregá una foto, GIF o enlace para publicar')
+      return
+    }
     setLoading(true)
     try {
       let finalThoughts = html
@@ -101,7 +152,7 @@ function CreatePost() {
       const plainTitle = textContent.slice(0, 60) || 'Publicación'
       const payload = {
         title: plainTitle,
-        type: 'book',
+        type: 'post',
         creator: null,
         rating: null,
         thoughts: finalThoughts || '',
@@ -111,15 +162,15 @@ function CreatePost() {
       navigate(`/item/${res.data.id}`)
     } catch (error) {
       console.error('Error creating post:', error)
+      alert(error.response?.data?.detail || 'No se pudo publicar')
     } finally {
       setLoading(false)
     }
   }
 
   const previewUrl = imageUrl.trim() || gifUrl.trim()
-  if (!editor) return null
-  const hasContent = editor.getText().replace(/\u00a0/g, ' ').trim().length > 0
-  const canPublish = !loading && !uploading && (hasContent || !!imageUrl.trim() || !!gifUrl.trim() || !!linkUrl.trim())
+  const hasMedia = !!(imageUrl.trim() || gifUrl.trim() || linkUrl.trim())
+  const canPublish = !loading && !uploading && (editorHasText || hasMedia)
 
   return (
     <div className="create-post-page">
@@ -129,10 +180,46 @@ function CreatePost() {
       </header>
       <form onSubmit={handleSubmit} className="create-post-form">
         <div className="format-toolbar">
+          <select
+            className="format-select"
+            value={fontFamily}
+            onChange={(e) => {
+              setFontFamily(e.target.value)
+              editor.chain().focus().setFontFamily(e.target.value).run()
+            }}
+          >
+            {FONT_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <select
+            className="format-select"
+            value={fontSize}
+            onChange={(e) => {
+              setFontSize(e.target.value)
+              editor.chain().focus().setFontSize(e.target.value).run()
+            }}
+          >
+            {SIZE_OPTIONS.map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
           <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`format-btn ${editor.isActive('bold') ? 'active' : ''}`} title="Negrita"><strong>B</strong></button>
           <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`format-btn ${editor.isActive('italic') ? 'active' : ''}`} title="Cursiva"><em>I</em></button>
           <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={`format-btn ${editor.isActive('underline') ? 'active' : ''}`} title="Subrayado"><u>U</u></button>
           <button type="button" onClick={() => editor.chain().focus().toggleStrike().run()} className={`format-btn ${editor.isActive('strike') ? 'active' : ''}`} title="Tachado"><s>S</s></button>
+          <button
+            type="button"
+            className="format-btn"
+            title="Restablecer formato"
+            onClick={() => {
+              editor.chain().focus().unsetAllMarks().clearNodes().setFontFamily(FONT_OPTIONS[0].value).unsetFontSize().run()
+              setFontFamily(FONT_OPTIONS[0].value)
+              setFontSize('16px')
+            }}
+          >
+            Restablecer
+          </button>
         </div>
         <div className="create-post-row">
           <div className="post-editor-shell">

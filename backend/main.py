@@ -1,7 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.routers import items, auth, comments, chat, likes, books, users, catalog
+from app.routers import (
+    items,
+    auth,
+    comments,
+    chat,
+    likes,
+    books,
+    users,
+    catalog,
+    friends,
+    notifications,
+)
 from app.database import engine, Base
 from app.storage import UPLOAD_ROOT, ensure_upload_dirs
 from dotenv import load_dotenv
@@ -32,6 +43,8 @@ app.include_router(chat.router)
 app.include_router(likes.router)
 app.include_router(books.router)
 app.include_router(catalog.router)
+app.include_router(friends.router)
+app.include_router(notifications.router)
 
 
 

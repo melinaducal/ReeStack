@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Float, Integer, String, Text, Boolean, ForeignKey
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -13,6 +15,9 @@ class Comment(Base):
     rating = Column(Float)
     content = Column(Text, nullable=False)
     has_spoiler = Column(Boolean, default=False)
+    # Nullable on purpose: comments created before this column existed have no
+    # reliable timestamp, and inventing one would falsify data.
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
 
     item = relationship("Item")
     user = relationship("User")

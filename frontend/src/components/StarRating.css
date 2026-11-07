@@ -1,0 +1,135 @@
+.star-rating {
+  --star-size: 28px;
+  --star-gold: #C69246;
+  --star-empty: #E4DFD8;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.star-rating--sm {
+  --star-size: 20px;
+}
+
+.star-rating--md {
+  --star-size: 28px;
+}
+
+.star-rating--lg {
+  --star-size: 36px;
+}
+
+.star-rating__stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border-radius: 10px;
+  outline: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  align-self: flex-start;
+  width: fit-content;
+}
+
+.star-rating__stars.is-interactive {
+  cursor: pointer;
+}
+
+.star-rating__stars.is-interactive:focus-visible {
+  outline: 2px solid var(--accent-violet, #6B46C1);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px var(--focus-ring, rgba(107, 70, 193, 0.18));
+}
+
+.star-rating__stars.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.star-rating__star {
+  position: relative;
+  display: block;
+  width: var(--star-size);
+  height: var(--star-size);
+  flex: 0 0 auto;
+}
+
+.star-rating__base {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.star-rating__base path {
+  fill: var(--star-empty);
+  transition: fill 140ms ease;
+}
+
+.star-rating__clip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  overflow: hidden;
+  transition: width 120ms ease;
+}
+
+.star-rating__fill {
+  display: block;
+  width: var(--star-size);
+  height: var(--star-size);
+}
+
+.star-rating__fill path {
+  fill: var(--star-gold);
+}
+
+.star-rating__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.star-rating__legend {
+  font-size: 0.86rem;
+  color: var(--text-tertiary, #6B6B6B);
+  letter-spacing: 0.01em;
+}
+
+.star-rating__clear {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--accent-violet, #6B46C1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: 4px;
+}
+
+.star-rating__clear:hover:not(:disabled) {
+  color: var(--accent-hover, #5A3AA8);
+}
+
+.star-rating__clear:focus-visible {
+  outline: 2px solid var(--accent-violet, #6B46C1);
+  outline-offset: 2px;
+}
+
+.star-rating__clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star-rating__clip,
+  .star-rating__base path {
+    transition: none;
+  }
+}

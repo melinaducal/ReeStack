@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
 import { getErrorMessage } from '../services/errors'
+import {
+  ProfileCollectionGrid,
+  ProfileHeader,
+  ProfilePostCard,
+  ProfileStats,
+  ProfileTabNav
+} from '../components/ProfileSections'
+import { getInitials } from '../utils/profile'
 import './Profile.css'
 
 function Profile() {
@@ -48,19 +56,18 @@ function Profile() {
 
   const fetchItems = async () => {
     try {
-      const res = await api.get('/items', { params: { mine: true } })
+      const res = await api.get('/items', { params: { mine: true, include_posts: false } })
       setItems(res.data || [])
       const data = res.data || []
-      const s = {
+      setStats(prev => ({
+        ...prev,
         items_count: data.length,
         books: data.filter(i => i.type === 'book').length,
         movies: data.filter(i => i.type === 'movie').length,
         series: data.filter(i => i.type === 'series').length,
         music: data.filter(i => i.type === 'music').length,
-        papers: data.filter(i => i.type === 'paper').length,
-        posts_count: data.length
-      }
-      setStats(s)
+        papers: data.filter(i => i.type === 'paper').length
+      }))
     } catch (e) {
       console.error(e)
     }
@@ -68,7 +75,7 @@ function Profile() {
 
   const fetchPosts = async () => {
     try {
-      const res = await api.get('/items', { params: { mine: true } })
+      const res = await api.get('/items', { params: { mine: true, type: 'post' } })
       const data = res.data || []
       const sorted = [...data].sort((a, b) => {
         const aTime = a.created_at ? new Date(a.created_at).getTime() : (b.id - a.id)
@@ -77,7 +84,7 @@ function Profile() {
         return b.id - a.id
       })
       setPosts(sorted)
-      setStats(prev => ({ ...prev, posts_count: sorted.length, items_count: sorted.length }))
+      setStats(prev => ({ ...prev, posts_count: sorted.length }))
     } catch (e) {
       console.error(e)
     }
@@ -147,11 +154,6 @@ function Profile() {
     }
   }
 
-  const getInitials = (name) => {
-    if (!name) return 'U'
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-  }
-
   if (loading) return <div className="profile-page"><p>Cargando...</p></div>
   if (!profile) return <div className="profile-page"><p>No se pudo cargar el perfil</p></div>
 
@@ -159,30 +161,16 @@ function Profile() {
 
   return (
     <div className="profile-page">
-      <header className="profile-hero">
-        <div className="profile-hero-inner">
-          <div className="profile-avatar-wrap">
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt={displayName} className="profile-avatar" />
-            ) : (
-              <div className="profile-avatar-placeholder">{getInitials(displayName)}</div>
-            )}
-          </div>
-          <div className="profile-hero-info">
-            <div className="profile-hero-top">
-              <div>
-                <h1 className="profile-name">{displayName}</h1>
-                <p className="profile-username">@{profile.username}</p>
-              </div>
-              <div className="profile-hero-actions">
-                <button onClick={() => setEditing(!editing)} className="profile-btn">{editing ? 'Cancelar' : 'Editar perfil'}</button>
-                <Link to="/settings" className="profile-btn profile-btn-ghost">Configuración</Link>
-              </div>
-            </div>
-            {profile.bio && <p className="profile-bio">{profile.bio}</p>}
-          </div>
-        </div>
-      </header>
+      <ProfileHeader
+        profile={profile}
+        displayName={displayName}
+        actions={(
+          <>
+            <button onClick={() => setEditing(!editing)} className="profile-btn">{editing ? 'Cancelar' : 'Editar perfil'}</button>
+            <Link to="/settings" className="profile-btn profile-btn-ghost">Configuración</Link>
+          </>
+        )}
+      />
 
       {editing && (
         <section className="profile-edit-card">
@@ -246,39 +234,18 @@ function Profile() {
         </section>
       )}
 
-      <section className="profile-stats">
-        <div className="profile-stat-card">
-          <p className="profile-stat-number">{posts.length || stats.posts_count || stats.items_count}</p>
-          <p className="profile-stat-label">Publicaciones</p>
-        </div>
-        <div className="profile-stat-card">
-          <p className="profile-stat-number">{stats.books}</p>
-          <p className="profile-stat-label">Libros</p>
-        </div>
-        <div className="profile-stat-card">
-          <p className="profile-stat-number">{stats.movies}</p>
-          <p className="profile-stat-label">Películas</p>
-        </div>
-        <div className="profile-stat-card">
-          <p className="profile-stat-number">{stats.series}</p>
-          <p className="profile-stat-label">Series</p>
-        </div>
-        <div className="profile-stat-card">
-          <p className="profile-stat-number">{stats.music}</p>
-          <p className="profile-stat-label">Música</p>
-        </div>
-        <div className="profile-stat-card">
-          <p className="profile-stat-number">{stats.papers}</p>
-          <p className="profile-stat-label">Papers</p>
-        </div>
-      </section>
+      <ProfileStats stats={stats} />
 
       <section className="profile-tabs">
-        <div className="profile-tabs-header">
-          <button className={`profile-tab ${activeTab === 'publicaciones' ? 'active' : ''}`} onClick={() => setActiveTab('publicaciones')}>Publicaciones</button>
-          <button className={`profile-tab ${activeTab === 'coleccion' ? 'active' : ''}`} onClick={() => setActiveTab('coleccion')}>Mi colección</button>
-          <button className={`profile-tab ${activeTab === 'actividad' ? 'active' : ''}`} onClick={() => setActiveTab('actividad')}>Actividad</button>
-        </div>
+        <ProfileTabNav
+          tabs={[
+            { id: 'publicaciones', label: 'Publicaciones' },
+            { id: 'coleccion', label: 'Mi colección' },
+            { id: 'actividad', label: 'Actividad' }
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
 
         {activeTab === 'publicaciones' && (
           <div className="profile-tab-panel">
@@ -289,111 +256,23 @@ function Profile() {
               </div>
             ) : (
               <div className="profile-posts-list">
-                {posts.map(post => {
-                  const date = post.created_at ? new Date(post.created_at).toLocaleDateString('es-AR') : ''
-                  const displayNameUser = profile.display_name || `${profile.first_name} ${profile.last_name}`
-                  return (
-                    <article key={post.id} className="profile-post-card">
-                      <header className="profile-post-header">
-                        <div className="profile-post-author">
-                          {profile.avatar_url ? (
-                            <img src={profile.avatar_url} alt={displayNameUser} className="profile-post-avatar" />
-                          ) : (
-                            <div className="profile-post-avatar-placeholder">{getInitials(displayNameUser)}</div>
-                          )}
-                          <div>
-                            <p className="profile-post-name">{displayNameUser}</p>
-                            <p className="profile-post-username">@{profile.username}</p>
-                          </div>
-                        </div>
-                        <div className="profile-post-meta">
-                          {date && <span>{date}</span>}
-                          <span className="profile-post-type">{post.type}</span>
-                        </div>
-                      </header>
-                      <div className="profile-post-content">
-                        {post.thoughts && (
-                          <div className="profile-post-text" dangerouslySetInnerHTML={{ __html: post.thoughts }} />
-                        )}
-                        {post.cover_url && (
-                          <div className="profile-post-media">
-                            <img src={post.cover_url} alt={post.title} />
-                          </div>
-                        )}
-                      </div>
-                      {(post.title || post.creator || post.rating) && (
-                        <div className="profile-post-related">
-                          <Link to={`/item/${post.id}`} className="profile-post-related-link">
-                            <div>
-                              <p className="profile-post-related-title">{post.title}</p>
-                              {(post.creator || post.rating) && (
-                                <p className="profile-post-related-meta">
-                                  {post.creator}{post.creator && post.rating ? ' · ' : ''}{post.rating ? `★ ${post.rating}/10` : ''}
-                                </p>
-                              )}
-                            </div>
-                          </Link>
-                        </div>
-                      )}
-                      <footer className="profile-post-interactions">
-                        <span className={`profile-post-interaction ${post.likes_count ? 'active' : ''}`}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill={post.likes_count ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                          </svg>
-                          <span>{post.likes_count || 0}</span>
-                        </span>
-                        <span className="profile-post-interaction">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                          </svg>
-                          <span>{post.comments_count || 0}</span>
-                        </span>
-                      </footer>
-                    </article>
-                  )
-                })}
+                {posts.map(post => (
+                  <ProfilePostCard key={post.id} post={post} owner={profile} />
+                ))}
               </div>
             )}
           </div>
         )}
 
         {activeTab === 'coleccion' && (
-          <div className="profile-tab-panel">
-            <div className="profile-section-header">
-              <h2>Mi colección</h2>
-              <p>Contenido guardado en tu stack</p>
-            </div>
-            {items.length === 0 ? (
-              <div className="profile-empty">
-                <p>Aún no hay elementos en tu colección</p>
-                <Link to="/add" className="profile-btn">Agregar contenido</Link>
-              </div>
-            ) : (
-              <div className="profile-items-grid">
-                {items.map(item => (
-                  <Link to={`/item/${item.id}`} key={item.id} className="profile-item-card">
-                    <div className="profile-item-cover-wrap">
-                      {item.cover_url ? (
-                        <img src={item.cover_url} alt={item.title} className="profile-item-cover" />
-                      ) : (
-                        <div className="profile-item-cover-placeholder">
-                          <span>{item.type?.[0]?.toUpperCase() || 'R'}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="profile-item-body">
-                      <h3 className="profile-item-title">{item.title}</h3>
-                      {item.creator && <p className="profile-item-creator">{item.creator}</p>}
-                      <div className="profile-item-meta">
-                        <span className="profile-item-badge">{item.type}</span>
-                        {item.rating && <span className="profile-item-rating">★ {item.rating}/10</span>}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+          <ProfileCollectionGrid
+            items={items}
+            title="Mi colección"
+            subtitle="Contenido guardado en tu stack"
+            emptyMessage="Aún no hay elementos en tu colección"
+            emptyAction={<Link to="/add" className="profile-btn">Agregar contenido</Link>}
+            formatType={item => item.type}
+          />
         )}
 
         {activeTab === 'actividad' && (

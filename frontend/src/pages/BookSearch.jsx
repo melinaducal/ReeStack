@@ -26,7 +26,7 @@ function BookSearch() {
 
   const fetchUserItems = async () => {
     try {
-      const response = await api.get('/items', { params: { mine: true } })
+      const response = await api.get('/items', { params: { mine: true, include_posts: false } })
       setUserItems(response.data || [])
     } catch (error) {
       console.error('Error fetching user items:', error)

@@ -1,11 +1,34 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import RichTextEditor from '../components/RichTextEditor'
+import { isPost, sanitizeRichText } from '../utils/richText'
 import './ItemDetail.css'
+
+const TYPE_LABELS = {
+  book: 'Libro',
+  movie: 'Película',
+  series: 'Serie',
+  music: 'Música',
+  paper: 'Paper',
+  post: 'Publicación'
+}
+
+const getCommentAuthor = (comment) =>
+  comment.display_name || comment.username || 'Usuario'
+
+const formatCommentDate = (value) => {
+  if (!value) return ''
+  const hasTimezone = /(Z|[+-]\d{2}:?\d{2})$/.test(value)
+  const date = new Date(hasTimezone ? value : `${value}Z`)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
+}
 
 function ItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const menuRef = useRef(null)
   const [item, setItem] = useState(null)
   const [currentPageInput, setCurrentPageInput] = useState('')
   const [showProgressUpdate, setShowProgressUpdate] = useState(false)
@@ -22,6 +45,8 @@ function ItemDetail() {
   const [showEdit, setShowEdit] = useState(false)
   const [editData, setEditData] = useState({})
   const [likeState, setLikeState] = useState({ liked: false, likes_count: 0 })
+  const [menuOpen, setMenuOpen] = useState(false)
+  const postItem = isPost(item)
 
   useEffect(() => {
     fetchItem()
@@ -30,6 +55,16 @@ function ItemDetail() {
     fetchCurrentUser()
     fetchLikeState()
   }, [id])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const fetchCurrentUser = async () => {
     try {
@@ -117,7 +152,7 @@ function ItemDetail() {
     e.preventDefault()
     try {
       await api.post(`/comments/item/${id}`, {
-        rating: newComment.rating ? parseInt(newComment.rating) : null,
+        rating: !postItem && newComment.rating ? parseInt(newComment.rating) : null,
         content: newComment.content,
         has_spoiler: newComment.has_spoiler
       })
@@ -126,6 +161,16 @@ function ItemDetail() {
       fetchRatingSummary()
     } catch (error) {
       console.error('Error adding comment:', error)
+    }
+  }
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('¿Eliminar este comentario?')) return
+    try {
+      await api.delete(`/comments/${commentId}`)
+      await fetchComments()
+    } catch (error) {
+      alert(error.response?.data?.detail || 'No se pudo eliminar el comentario')
     }
   }
 
@@ -143,12 +188,18 @@ function ItemDetail() {
   const handleEditSave = async () => {
     try {
       const payload = {}
-      for (const key in editData) {
-        if (editData[key] === '' || editData[key] === null) continue
-        if (key === 'year' || key === 'pages' || key === 'rating') {
-          payload[key] = parseInt(editData[key])
-        } else {
-          payload[key] = editData[key]
+      if (postItem) {
+        // A post stays a post: the type is never changed or inferred here.
+        if (editData.title !== undefined) payload.title = editData.title
+        payload.thoughts = editData.thoughts || ''
+      } else {
+        for (const key in editData) {
+          if (editData[key] === '' || editData[key] === null) continue
+          if (key === 'year' || key === 'pages' || key === 'rating') {
+            payload[key] = parseInt(editData[key])
+          } else {
+            payload[key] = editData[key]
+          }
         }
       }
       const res = await api.put(`/items/${id}`, payload)
@@ -164,11 +215,181 @@ function ItemDetail() {
 
   const filteredComments = showSpoilers ? comments : comments.filter(c => !c.has_spoiler)
 
+  const owner = item.owner || {}
+  const isOwner = currentUser && item.user_id === currentUser.id
+  const createdAt = item.created_at ? new Date(item.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
+  const ownerName = owner.display_name || owner.name || owner.username || [owner.first_name, owner.last_name].filter(Boolean).join(' ') || 'Usuario'
+  const ownerHandle = owner.username || ''
+  const ownerAvatar = owner.avatar_url || owner.profile_picture || null
+
+  if (postItem) {
+    return (
+      <div className="post-detail-page">
+        <article className="post-detail-article">
+          <header className="post-detail-article-header">
+            <div className="post-detail-author">
+              {ownerAvatar ? (
+                <img src={ownerAvatar} alt={ownerName} className="post-detail-avatar" />
+              ) : (
+                <div className="post-detail-avatar placeholder">{(ownerName || 'U')[0].toUpperCase()}</div>
+              )}
+              <div className="post-detail-author-info">
+                <div className="post-detail-author-line">
+                  <span className="post-detail-author-name">{ownerName}</span>
+                  {ownerHandle && <span className="post-detail-author-username">@{ownerHandle}</span>}
+                </div>
+                {createdAt && <span className="post-detail-date">{createdAt}</span>}
+              </div>
+            </div>
+            {isOwner && (
+              <div className="post-detail-menu" ref={menuRef}>
+                <button className="post-detail-menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menú">
+                  ⋮
+                </button>
+                {menuOpen && (
+                  <div className="post-detail-menu-dropdown">
+                    <button onClick={() => { setShowEdit(true); setMenuOpen(false) }}>Editar</button>
+                    <button onClick={() => { setMenuOpen(false); handleDelete() }} className="danger">Eliminar</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </header>
+
+          {showEdit && isOwner && (
+            <div className="post-detail-edit">
+              <label className="post-detail-edit-label">Contenido</label>
+              <RichTextEditor
+                value={editData.thoughts || ''}
+                onChange={(html) => setEditData(prev => ({ ...prev, thoughts: html }))}
+              />
+              <div className="post-detail-edit-actions">
+                <button onClick={handleEditSave} className="post-detail-btn primary">Guardar cambios</button>
+                <button onClick={() => setShowEdit(false)} className="post-detail-btn">Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {!showEdit && item.thoughts && (
+            <div
+              className="post-detail-content"
+              dangerouslySetInnerHTML={{ __html: sanitizeRichText(item.thoughts) }}
+            />
+          )}
+
+          {!showEdit && item.cover_url && (
+            <img
+              src={item.cover_url}
+              alt={item.title || 'Imagen de la publicación'}
+              className="post-detail-media"
+            />
+          )}
+
+          <div className="post-detail-interactions">
+            <button onClick={handleLikeToggle} className={`post-detail-like ${likeState.liked ? 'liked' : ''}`}>
+              <span>{likeState.liked ? '♥' : '♡'}</span>
+              <span>{likeState.likes_count}</span>
+            </button>
+            <div className="post-detail-comments-count">
+              <span>💬</span>
+              <span>{comments.length}</span>
+            </div>
+          </div>
+
+          <section className="post-detail-comments-section">
+            <h2>Comentarios</h2>
+            <form onSubmit={handleCommentSubmit} className="post-detail-comment-form">
+              <div className="post-detail-comment-input-row">
+                {currentUser?.avatar_url ? (
+                  <img src={currentUser.avatar_url} alt={getCommentAuthor(currentUser)} className="post-detail-comment-avatar" />
+                ) : (
+                  <div className="post-detail-comment-avatar placeholder">{getCommentAuthor(currentUser)[0].toUpperCase()}</div>
+                )}
+                <div className="post-detail-comment-input-wrap">
+                  <textarea
+                    value={newComment.content}
+                    onChange={(e) => setNewComment({...newComment, content: e.target.value})}
+                    required
+                    rows="2"
+                    className="post-detail-comment-textarea"
+                    placeholder="Escribí un comentario..."
+                  />
+                </div>
+              </div>
+              <div className="post-detail-comment-meta">
+                <label className="post-detail-spoiler-check">
+                  <input 
+                    type="checkbox" 
+                    checked={newComment.has_spoiler} 
+                    onChange={(e) => setNewComment({...newComment, has_spoiler: e.target.checked})} 
+                  />
+                  Contiene spoilers
+                </label>
+                <button type="submit" className="post-detail-btn primary">Enviar</button>
+              </div>
+            </form>
+
+            <div className="post-detail-spoiler-toggle">
+              <label>
+                <input 
+                  type="checkbox" 
+                  checked={showSpoilers} 
+                  onChange={(e) => setShowSpoilers(e.target.checked)} 
+                />
+                Mostrar spoilers
+              </label>
+            </div>
+
+            <div className="post-detail-comments-list">
+              {filteredComments.length === 0 ? (
+                <p className="post-detail-no-comments">Aún no hay comentarios</p>
+              ) : (
+                filteredComments.map(comment => (
+                  <div key={comment.id} className="post-detail-comment-card">
+                    <div className="post-detail-comment-card-header">
+                      {comment.avatar_url ? (
+                        <img src={comment.avatar_url} alt={getCommentAuthor(comment)} className="post-detail-comment-avatar small" />
+                      ) : (
+                        <div className="post-detail-comment-avatar small placeholder">{getCommentAuthor(comment)[0].toUpperCase()}</div>
+                      )}
+                      <div className="post-detail-comment-card-info">
+                        <span className="post-detail-comment-username">{getCommentAuthor(comment)}</span>
+                        {comment.created_at && (
+                          <span className="post-detail-comment-date">{formatCommentDate(comment.created_at)}</span>
+                        )}
+                        {comment.has_spoiler && <span className="post-detail-spoiler-badge">Spoiler</span>}
+                      </div>
+                      {comment.is_owner && (
+                        <button
+                          type="button"
+                          className="post-detail-comment-delete"
+                          onClick={() => handleDeleteComment(comment.id)}
+                          aria-label="Eliminar comentario"
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                    {comment.has_spoiler && !showSpoilers ? (
+                      <p className="post-detail-spoiler-hidden">Este comentario contiene spoilers. Activa "Mostrar spoilers" para verlo.</p>
+                    ) : (
+                      <p className="post-detail-comment-content">{comment.content}</p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </article>
+      </div>
+    )
+  }
+
   return (
     <div className="item-detail-layout">
       <div className="item-detail-main">
-        <div className="item-detail-header">
-          {item.cover_url ? (
+        <div className={`item-detail-header ${postItem ? 'item-detail-header-post' : ''}`}>
+          {!postItem && (item.cover_url ? (
             <img 
               src={item.cover_url} 
               alt={item.title}
@@ -178,42 +399,18 @@ function ItemDetail() {
             <div className="item-detail-cover-placeholder">
               <span>{item.type?.[0]?.toUpperCase() || 'R'}</span>
             </div>
-          )}
-          {item.thoughts && (
-            <div className="item-detail-thoughts">
-              {(() => {
-                const text = item.thoughts || ''
-                if (text.trim().startsWith('<')) {
-                  return <div dangerouslySetInnerHTML={{ __html: text }} />
-                }
-                const formatText = (t) => {
-                  let result = t
-                  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-                  result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-                  result = result.replace(/__([^_]+)__/g, '<u>$1</u>')
-                  result = result.replace(/~~([^~]+)~~/g, '<s>$1</s>')
-                  result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>')
-                  result = result.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">Ver enlace</a>')
-                  return result
-                }
-                return <div dangerouslySetInnerHTML={{ __html: formatText(text).replace(/\n/g, '<br/>') }} />
-              })()}
-            </div>
-          )}
-          ) : (
-            <div className="item-detail-cover-placeholder">
-              <span>{item.type?.[0]?.toUpperCase() || 'R'}</span>
-            </div>
-          )}
+          ))}
           <div className="item-detail-info">
-            <h1>{item.title}</h1>
+            {postItem ? <h1 className="sr-only">Publicación</h1> : <h1>{item.title}</h1>}
             <div className="item-meta">
-              <span className="badge">{item.type}</span>
-              {item.creator && <span>por {item.creator}</span>}
-              {item.year && <span>{item.year}</span>}
-              {item.pages && <span>{item.pages} páginas</span>}
+              <span className={`badge ${postItem ? 'badge-post' : ''}`}>
+                {TYPE_LABELS[item.type] || item.type}
+              </span>
+              {!postItem && item.creator && <span>por {item.creator}</span>}
+              {!postItem && item.year && <span>{item.year}</span>}
+              {!postItem && item.pages && <span>{item.pages} páginas</span>}
             </div>
-            {ratingSummary.count > 0 && (
+            {!postItem && ratingSummary.count > 0 && (
               <div className="rating-summary">
                 <span className="rating-stars">★ {ratingSummary.average}</span>
                 <span className="rating-count">({ratingSummary.count} {ratingSummary.count === 1 ? 'calificación' : 'calificaciones'})</span>
@@ -222,7 +419,7 @@ function ItemDetail() {
           </div>
         </div>
 
-        {item.type === 'book' && item.pages && (
+        {!postItem && item.type === 'book' && item.pages && (
           <div className="reading-progress-section">
             <h2>Seguimiento de lectura</h2>
             <div className="progress-info">
@@ -253,7 +450,7 @@ function ItemDetail() {
           </div>
         )}
 
-        {item.thoughts && !showEdit && (
+        {!postItem && item.thoughts && !showEdit && (
           <div className="thoughts-section">
             <h2>Pensamientos y Opiniones</h2>
             <p>{item.thoughts}</p>
@@ -273,35 +470,46 @@ function ItemDetail() {
 
         {showEdit && currentUser && item.user_id === currentUser.id && (
           <div className="edit-section" style={{ marginTop: '1.5rem', padding: '1rem', border: '1px solid #D4B896' }}>
-            <h2>Editar publicación</h2>
+            <h2>{postItem ? 'Editar publicación' : 'Editar elemento'}</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <label>Título
                 <input type="text" value={editData.title} onChange={(e) => setEditData({...editData, title: e.target.value})} className="progress-input" style={{ width: '100%' }} />
               </label>
-              <label>Tipo
-                <select value={editData.type} onChange={(e) => setEditData({...editData, type: e.target.value})} className="rating-select">
-                  <option value="book">book</option>
-                  <option value="movie">movie</option>
-                  <option value="series">series</option>
-                  <option value="music">music</option>
-                  <option value="paper">paper</option>
-                </select>
-              </label>
-              <label>Creador/Autor
-                <input type="text" value={editData.creator} onChange={(e) => setEditData({...editData, creator: e.target.value})} className="progress-input" style={{ width: '100%' }} />
-              </label>
-              <label>Año
-                <input type="number" value={editData.year} onChange={(e) => setEditData({...editData, year: e.target.value})} className="progress-input" style={{ width: '100%' }} />
-              </label>
-              <label>URL de portada
-                <input type="text" value={editData.cover_url} onChange={(e) => setEditData({...editData, cover_url: e.target.value})} className="progress-input" style={{ width: '100%' }} />
-              </label>
-              <label>Páginas (para libros)
-                <input type="number" value={editData.pages} onChange={(e) => setEditData({...editData, pages: e.target.value})} className="progress-input" style={{ width: '100%' }} />
-              </label>
-              <label>Pensamientos/Opinión
-                <textarea value={editData.thoughts} onChange={(e) => setEditData({...editData, thoughts: e.target.value})} rows="4" className="comment-textarea" />
-              </label>
+              {postItem ? (
+                <label>Contenido
+                  <RichTextEditor
+                    value={editData.thoughts || ''}
+                    onChange={(html) => setEditData(prev => ({ ...prev, thoughts: html }))}
+                  />
+                </label>
+              ) : (
+                <>
+                  <label>Tipo
+                    <select value={editData.type} onChange={(e) => setEditData({...editData, type: e.target.value})} className="rating-select">
+                      <option value="book">Libro</option>
+                      <option value="movie">Película</option>
+                      <option value="series">Serie</option>
+                      <option value="music">Música</option>
+                      <option value="paper">Paper</option>
+                    </select>
+                  </label>
+                  <label>Creador/Autor
+                    <input type="text" value={editData.creator} onChange={(e) => setEditData({...editData, creator: e.target.value})} className="progress-input" style={{ width: '100%' }} />
+                  </label>
+                  <label>Año
+                    <input type="number" value={editData.year} onChange={(e) => setEditData({...editData, year: e.target.value})} className="progress-input" style={{ width: '100%' }} />
+                  </label>
+                  <label>URL de portada
+                    <input type="text" value={editData.cover_url} onChange={(e) => setEditData({...editData, cover_url: e.target.value})} className="progress-input" style={{ width: '100%' }} />
+                  </label>
+                  <label>Páginas (para libros)
+                    <input type="number" value={editData.pages} onChange={(e) => setEditData({...editData, pages: e.target.value})} className="progress-input" style={{ width: '100%' }} />
+                  </label>
+                  <label>Pensamientos/Opinión
+                    <textarea value={editData.thoughts} onChange={(e) => setEditData({...editData, thoughts: e.target.value})} rows="4" className="comment-textarea" />
+                  </label>
+                </>
+              )}
               <button onClick={handleEditSave} className="save-progress-btn">Guardar cambios</button>
             </div>
           </div>
@@ -329,7 +537,7 @@ function ItemDetail() {
           </div>
         </section>
         <section className="comments-section">
-          <h2>Comentarios y calificaciones</h2>
+          <h2>{postItem ? 'Comentarios' : 'Comentarios y calificaciones'}</h2>
           
           <div className="spoiler-toggle">
             <label>
@@ -343,21 +551,23 @@ function ItemDetail() {
           </div>
 
           <form onSubmit={handleCommentSubmit} className="comment-form">
-            <div className="form-group">
-              <label>Calificación (opcional)</label>
-              <select 
-                value={newComment.rating} 
-                onChange={(e) => setNewComment({...newComment, rating: e.target.value})}
-                className="rating-select"
-              >
-                <option value="">Sin calificar</option>
-                <option value="1">1 ★</option>
-                <option value="2">2 ★</option>
-                <option value="3">3 ★</option>
-                <option value="4">4 ★</option>
-                <option value="5">5 ★</option>
-              </select>
-            </div>
+            {!postItem && (
+              <div className="form-group">
+                <label>Calificación (opcional)</label>
+                <select 
+                  value={newComment.rating} 
+                  onChange={(e) => setNewComment({...newComment, rating: e.target.value})}
+                  className="rating-select"
+                >
+                  <option value="">Sin calificar</option>
+                  <option value="1">1 ★</option>
+                  <option value="2">2 ★</option>
+                  <option value="3">3 ★</option>
+                  <option value="4">4 ★</option>
+                  <option value="5">5 ★</option>
+                </select>
+              </div>
+            )}
             <div className="form-group">
               <label>Comentario</label>
               <textarea
@@ -386,9 +596,29 @@ function ItemDetail() {
               filteredComments.map(comment => (
                 <div key={comment.id} className="comment-card">
                   <div className="comment-header">
-                    <span className="comment-username">{comment.username || 'Usuario'}</span>
+                    {comment.avatar_url ? (
+                      <img src={comment.avatar_url} alt={getCommentAuthor(comment)} className="comment-avatar" />
+                    ) : (
+                      <div className="comment-avatar placeholder">{getCommentAuthor(comment)[0].toUpperCase()}</div>
+                    )}
+                    <div className="comment-header-info">
+                      <span className="comment-username">{getCommentAuthor(comment)}</span>
+                      {comment.created_at && (
+                        <span className="comment-date">{formatCommentDate(comment.created_at)}</span>
+                      )}
+                    </div>
                     {comment.rating && <span className="comment-rating">★ {comment.rating}</span>}
                     {comment.has_spoiler && <span className="spoiler-badge">Spoiler</span>}
+                    {comment.is_owner && (
+                      <button
+                        type="button"
+                        className="comment-delete"
+                        onClick={() => handleDeleteComment(comment.id)}
+                        aria-label="Eliminar comentario"
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </div>
                   {comment.has_spoiler && !showSpoilers ? (
                     <p className="spoiler-hidden">Este comentario contiene spoilers. Activa "Mostrar spoilers" para verlo.</p>

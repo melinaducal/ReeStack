@@ -1,6 +1,7 @@
 from sqlalchemy import Boolean, Column, Float, Integer, String, Text, ForeignKey, text
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.item_types import POST_TYPE
 
 
 class Item(Base):
@@ -9,7 +10,8 @@ class Item(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     title = Column(String, index=True, nullable=False)
-    type = Column(String, nullable=False)  # book, movie, series, music, paper
+    # book, movie, series, music, paper (cultural works) or post (social post)
+    type = Column(String, nullable=False)
     creator = Column(String)
     year = Column(Integer)
     # Fractional stars are allowed (1/3, 1/2, 1/6 of a star), so this must be REAL.
@@ -28,3 +30,8 @@ class Item(Base):
     )
 
     owner = relationship("User")
+
+    @property
+    def kind(self) -> str:
+        """Explicit domain distinction: social post vs. cultural work."""
+        return "post" if self.type == POST_TYPE else "work"

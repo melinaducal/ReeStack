@@ -105,3 +105,64 @@
 .navbar-profile-logout {
   color: #8b5a5a;
 }
+
+.navbar-link-badge {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.navbar-badge {
+  background: var(--accent-violet, #6B46C1);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.7rem;
+  line-height: 1;
+  min-width: 1.25rem;
+  padding: 0.22rem 0.38rem;
+  text-align: center;
+}
+
+.navbar-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #3f344c;
+  text-decoration: none;
+  padding: 0.15rem 0.25rem;
+  border-radius: 8px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.navbar-icon-btn:hover {
+  color: var(--accent-violet, #6B46C1);
+  background: rgba(196, 164, 255, 0.12);
+}
+
+.navbar-bell {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.navbar-badge-icon {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.45rem;
+  min-width: 1.1rem;
+  padding: 0.18rem 0.32rem;
+  font-size: 0.65rem;
+  pointer-events: none;
+}
+
+@media (max-width: 1180px) {
+  .navbar-menu {
+    gap: 1rem;
+  }
+
+  .navbar-link,
+  .navbar-profile-btn {
+    font-size: 0.88rem;
+  }
+}
+

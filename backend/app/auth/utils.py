@@ -1,7 +1,11 @@
+import logging
+
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -10,7 +14,15 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    if not hashed_password:
+        return False
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except ValueError:
+        # A malformed or unknown stored hash must not turn into a 500. The
+        # credential is simply not valid, and the hash itself is never logged.
+        logger.warning("Stored password hash is malformed; treating credentials as invalid")
+        return False
 
 def get_password_hash(password):
     return pwd_context.hash(password)

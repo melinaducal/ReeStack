@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
 from app.database import get_db
+from app.item_types import POST_TYPE
 from app.models import Item, User
 
 router = APIRouter(prefix="/books", tags=["books"])
@@ -442,7 +443,11 @@ def save_book(book: dict, db: Session = Depends(get_db), current_user: User = De
     title = book.get("title")
     if not title:
         raise HTTPException(status_code=400, detail="title requerido")
-    existing = db.query(Item).filter(Item.title == title, Item.user_id == current_user.id).first()
+    existing = db.query(Item).filter(
+        Item.title == title,
+        Item.user_id == current_user.id,
+        Item.type != POST_TYPE,
+    ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Ya existe en tu biblioteca")
     authors = book.get("authors") or []
